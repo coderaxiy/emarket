@@ -1,0 +1,34 @@
+---
+import { Logo } from '@/components/react/Logo';
+import { createT, getLocale } from '@/i18n';
+
+const t = createT(getLocale(Astro.cookies));
+const year = new Date().getFullYear();
+---
+
+<footer class="mt-16 border-t border-border bg-muted">
+  <div class="pattern-girih h-4 w-full [--girih-size:16px]" aria-hidden="true"></div>
+  <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-[2fr_1fr]">
+    <div class="flex max-w-sm flex-col gap-3">
+      <Logo className="h-8 [&>span]:inline" />
+      <p class="text-sm text-muted-foreground">{t('footer.about')}</p>
+    </div>
+    <div class="flex flex-col gap-2 text-sm">
+      <h2 class="font-semibold">{t('footer.buyers')}</h2>
+      <a href="/#how-it-works" class="w-fit text-muted-foreground hover:text-foreground hover:underline">
+        {t('footer.howItWorks')}
+      </a>
+      <a href="/catalog" class="w-fit text-muted-foreground hover:text-foreground hover:underline">
+        {t('nav.catalog')}
+      </a>
+      <a href="/orders" class="w-fit text-muted-foreground hover:text-foreground hover:underline">
+        {t('nav.orders')}
+      </a>
+    </div>
+  </div>
+  <div class="border-t border-border">
+    <p class="mx-auto max-w-7xl px-4 py-4 text-xs text-muted-foreground tabular-nums">
+      {t('footer.rights', { year })}
+    </p>
+  </div>
+</footer>

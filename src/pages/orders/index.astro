@@ -1,0 +1,11 @@
+---
+import ComingSoon from '@/components/ComingSoon.astro';
+import { createT, getLocale } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+
+const t = createT(getLocale(Astro.cookies));
+---
+
+<Layout title={t('placeholder.ordersTitle')} noindex>
+  <ComingSoon title={t('placeholder.ordersTitle')} />
+</Layout>

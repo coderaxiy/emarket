@@ -1,18 +1,57 @@
 ---
-// Phase 1 placeholder: proves the layout, tokens and fonts render.
-// Replaced by the real home page (with t() strings) in later phases.
+import { ArrowRightIcon, MapPinIcon, ShoppingBasketIcon, WalletIcon } from 'lucide-react';
+import { createT, getLocale, type TranslationKey } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
+
+const t = createT(getLocale(Astro.cookies));
+
+// Editorial copy only — no fake promos, discounts or product rails without an endpoint.
+const STEPS: { icon: typeof MapPinIcon; title: TranslationKey; body: TranslationKey }[] = [
+  { icon: ShoppingBasketIcon, title: 'home.step1Title', body: 'home.step1Body' },
+  { icon: MapPinIcon, title: 'home.step2Title', body: 'home.step2Body' },
+  { icon: WalletIcon, title: 'home.step3Title', body: 'home.step3Body' },
+];
 ---
 
-<Layout title="emarket" description="emarket — onlayn bozor">
-  <main class="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 sm:py-20">
-    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-5xl">emarket</h1>
-    <div class="pattern-girih h-8 w-full" aria-hidden="true"></div>
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div class="rounded-lg bg-muted p-4 text-sm text-muted-foreground">muted</div>
-      <div class="rounded-lg bg-card p-4 text-sm shadow-sm">card</div>
-      <div class="rounded-lg bg-primary p-4 text-sm font-semibold text-primary-foreground">primary</div>
-      <div class="rounded-lg bg-accent p-4 text-sm font-semibold text-accent-foreground">accent</div>
+<Layout>
+  <section class="mx-auto max-w-7xl px-4 pt-4 sm:pt-8">
+    <div class="relative isolate overflow-hidden rounded-xl bg-accent px-6 py-10 text-accent-foreground sm:px-12 sm:py-16">
+      <div class="pattern-fade-left absolute inset-y-0 right-0 -z-10 w-2/3" aria-hidden="true">
+        <div class="pattern-girih size-full opacity-50 [--color-accent:var(--accent-foreground)]"></div>
+      </div>
+      <div class="flex max-w-2xl flex-col gap-5">
+        <h1 class="font-display text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
+          {t('home.heroTitle')}
+        </h1>
+        <p class="max-w-xl text-base text-pretty opacity-90 sm:text-lg">{t('home.heroBody')}</p>
+        <a
+          href="/catalog"
+          class="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-primary px-6 font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-accent focus-visible:outline-none"
+        >
+          {t('home.heroCta')}
+          <ArrowRightIcon className="size-4" aria-hidden="true" />
+        </a>
+      </div>
     </div>
-  </main>
+  </section>
+
+  <section id="how-it-works" class="mx-auto max-w-7xl scroll-mt-24 px-4 py-12 sm:py-16">
+    <h2 class="font-display text-xl font-semibold tracking-tight sm:text-2xl">{t('home.stepsTitle')}</h2>
+    <ol class="mt-6 grid gap-4 sm:grid-cols-3">
+      {
+        STEPS.map(({ icon: Icon, title, body }, index) => (
+          <li class="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+            <div class="flex items-center gap-3">
+              <span class="flex size-10 items-center justify-center rounded-full bg-primary/12 text-primary">
+                <Icon className="size-5" aria-hidden="true" />
+              </span>
+              <span class="font-display text-sm font-semibold text-muted-foreground tabular-nums">0{index + 1}</span>
+            </div>
+            <h3 class="text-lg font-semibold">{t(title)}</h3>
+            <p class="text-sm text-muted-foreground">{t(body)}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 </Layout>

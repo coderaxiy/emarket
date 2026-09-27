@@ -33,5 +33,35 @@ repo and what we learned building it.
 - `PageProgress.astro` animates `transform` only. No Tailwind `scale-x-*`.
 - Theme: `getTheme(Astro.cookies)` in `src/lib/preferences.ts` → `<html data-theme>`.
 
+## Layout of the code
+- `src/lib/api/` — `client.ts` (the one axios instance), `endpoints.ts` (every path),
+  `errors.ts` (`apiErrorMessage`, `isForbidden`, …), `queryClient.ts`, `server.ts` (SSR fetch
+  with cookie forwarding, `fetchSessionUser`), `types/` (hand-written, one file per entity,
+  cross-checked against `sdk-contract/openapi/api.yaml`).
+- `src/lib/auth.ts` — `PROTECTED_PATHS`, `safeNextPath` (open-redirect guard), `redirectToLogin`.
+- `src/middleware.ts` — resolves `Astro.locals.user` on every request; only redirects on
+  protected paths. Skips `/auth/me` when there's no `access_token` cookie.
+- `src/i18n/` — `locales/en.ts` is the shape; `index.ts` (`getLocale`, `createT`, `translate`,
+  `pickTranslation`, `INTL_LOCALES`); `react.tsx` (`LocaleProvider`, `useTranslation`).
+- `src/components/ui/` — generic primitives. `src/components/react/` — app islands.
+  `.astro` components in `src/components/` for static chrome (footer, tab bar, placeholders).
+
+## Islands
+- Every island's root wraps itself in `<AppProviders locale={locale}>` (QueryClient +
+  LocaleProvider + TooltipProvider). Pass `locale` from `getLocale(Astro.cookies)`.
+- The header is `transition:persist="site-header"`: it keeps state across navigations and gets
+  new props. Reset per-page state by keying a child on the prop (`<SearchBar key={query} />`).
+- Pass islands the minimum user slice (`toSessionUser`) — props are serialized into the HTML.
+- `toast()` from `ui/toast` works from any island; the single `<Toaster />` lives in the header.
+- Login, logout and locale change are hard navigations (`window.location`), theme is not.
+
 ## Styling
 See `DESIGN.md`. Tokens only — never raw palette colours.
+- `.pattern-girih` is itself a CSS mask: never put `mask-image` on the same element (it
+  replaces the pattern and renders stripes). Fade it with a `.pattern-fade-*` wrapper.
+- Tailwind v4 `translate-*` uses the CSS `translate` property, so keyframes animating
+  `transform: scale()` compose with centered dialogs without extra work.
+
+## Verifying in a browser
+- Playwright screenshots hide the caret by injecting styles, which can surface as a React
+  hydration-mismatch warning on inputs. Re-check without screenshots before chasing it.

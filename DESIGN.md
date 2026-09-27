@@ -41,8 +41,24 @@ pin `color-scheme`. The `dark:` variant targets `[data-theme='dark']` only, so p
 
 ## Pattern
 
-`.pattern-girih` — an eight-point-star lattice tinted with `accent`. Use sparingly: section
-dividers, empty states, the footer. **Never behind product imagery.**
+`.pattern-girih` — an eight-point-star lattice tinted with `accent` (override `--color-accent`
+on the element to recolour it, e.g. on an accent surface). Tile size via `--girih-size`.
+Fade it with a `.pattern-fade-down` / `.pattern-fade-left` wrapper — never a `mask-image` on
+the pattern element itself. Use sparingly: section dividers, empty states, the footer, the auth
+backdrop. **Never behind product imagery.**
+
+## Components
+
+Primitives in `src/components/ui/` (radix-ui + cva, `className` merged with `cn()`): button,
+input, textarea, label, field, select, badge, card, dialog, sheet (edge drawer / bottom sheet),
+dropdown-menu, tooltip, tabs, separator, skeleton, state (`LoadingState` / `EmptyState` /
+`ErrorState`), toast.
+
+- `Button` `primary` is for commerce actions only; `accent` for navigation-weight actions
+  (the catalog button); `outline`/`ghost` for everything else.
+- Search is the main entry point: a pill with a saffron border and a round submit button.
+- Mobile (< md): compact header (logo mark, search, settings) + fixed bottom tab bar
+  (Home, Catalog, Search, Cart, Profile). Desktop: logo, catalog, search, settings, account, cart.
 
 ## Motion
 

@@ -1,0 +1,9 @@
+---
+import AuthPage from '@/components/AuthPage.astro';
+import { safeNextPath } from '@/lib/auth';
+
+const next = safeNextPath(Astro.url.searchParams.get('next'));
+if (Astro.locals.user) return Astro.redirect(next);
+---
+
+<AuthPage mode="login" next={next} />

@@ -1,0 +1,46 @@
+---
+import { HomeIcon, LayoutGridIcon, SearchIcon, ShoppingBagIcon, UserIcon } from 'lucide-react';
+import { createT, getLocale, type TranslationKey } from '@/i18n';
+
+const t = createT(getLocale(Astro.cookies));
+const { pathname } = Astro.url;
+
+const TABS: { href: string; label: TranslationKey; icon: typeof HomeIcon }[] = [
+  { href: '/', label: 'nav.home', icon: HomeIcon },
+  { href: '/catalog', label: 'nav.catalog', icon: LayoutGridIcon },
+  { href: '/search', label: 'nav.search', icon: SearchIcon },
+  { href: '/cart', label: 'nav.cart', icon: ShoppingBagIcon },
+  { href: '/account', label: 'nav.profile', icon: UserIcon },
+];
+
+const isActive = (href: string) =>
+  href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+---
+
+<nav
+  aria-label={t('nav.mainNavigation')}
+  class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+>
+  <ul class="grid h-16 grid-cols-5">
+    {
+      TABS.map(({ href, label, icon: Icon }) => {
+        const active = isActive(href);
+        return (
+          <li>
+            <a
+              href={href}
+              aria-current={active ? 'page' : undefined}
+              class:list={[
+                'flex h-full flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              ]}
+            >
+              <Icon className="size-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+              <span class="max-w-full truncate px-1">{t(label)}</span>
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</nav>

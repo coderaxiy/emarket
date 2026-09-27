@@ -1,51 +1,84 @@
 ---
 import { ClientRouter } from 'astro:transitions';
+import Footer from '@/components/Footer.astro';
+import MobileTabBar from '@/components/MobileTabBar.astro';
 import PageProgress from '@/components/PageProgress.astro';
+import { Header } from '@/components/react/Header';
+import { toSessionUser } from '@/components/react/types';
+import { createT, getLocale } from '@/i18n';
 import { getTheme } from '@/lib/preferences';
 import '@/styles/global.css';
 
 interface Props {
-  title: string;
-  description: string;
+  /** Page title without the site name; omit on the home page. */
+  title?: string;
+  description?: string;
   /** Absolute or root-relative image for Open Graph previews. */
   ogImage?: string;
-  /** Set on pages that must not be indexed (cart, checkout, account). */
+  /** Set on pages that must not be indexed (cart, checkout, account, auth). */
   noindex?: boolean;
 }
 
-const { title, description, ogImage, noindex = false } = Astro.props;
-
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
 const theme = getTheme(Astro.cookies);
-// TODO(phase 2): read from the `locale` cookie via getLocale(Astro.cookies). Default is `uz`.
-const lang = 'uz';
+
+const { title, description = t('home.heroBody'), ogImage, noindex = false } = Astro.props;
+const siteName = t('common.appName');
+const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t('common.tagline')}`;
 const canonical = new URL(Astro.url.pathname, Astro.url.origin).href;
 const ogImageUrl = ogImage ? new URL(ogImage, Astro.url.origin).href : undefined;
+
+const currentPath = `${Astro.url.pathname}${Astro.url.search}`;
+const query = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ?? '') : '';
 ---
 
 <!doctype html>
-<html lang={lang} data-theme={theme}>
+<html lang={locale} data-theme={theme}>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
 
-    <title>{title}</title>
+    <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
-    <meta property="og:title" content={title} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={locale} />
     {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
     <meta name="twitter:card" content={ogImageUrl ? 'summary_large_image' : 'summary'} />
+    <slot name="head" />
 
     <ClientRouter />
   </head>
-  <body class="min-h-dvh">
+  <body class="flex min-h-dvh flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <a
+      href="#main"
+      class="sr-only z-50 rounded-md bg-card px-4 py-2 font-medium shadow-lg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:ring-2 focus:ring-ring"
+    >
+      {t('common.skipToContent')}
+    </a>
     <PageProgress />
-    <slot />
+    <Header
+      client:load
+      transition:persist="site-header"
+      locale={locale}
+      theme={theme}
+      user={toSessionUser(Astro.locals.user)}
+      currentPath={currentPath}
+      query={query}
+    />
+    <main id="main" class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+    <MobileTabBar />
   </body>
 </html>

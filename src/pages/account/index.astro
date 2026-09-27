@@ -1,0 +1,45 @@
+---
+import { ChevronRightIcon, PackageIcon } from 'lucide-react';
+import { createT, getLocale } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+
+const t = createT(getLocale(Astro.cookies));
+// Protected by middleware: a logged-out visitor never reaches this page.
+const user = Astro.locals.user!;
+---
+
+<Layout title={t('account.title')} noindex>
+  <section class="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:py-12">
+    <h1 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{t('account.title')}</h1>
+
+    <div class="rounded-lg border border-border bg-card p-5">
+      <h2 class="text-sm font-medium text-muted-foreground">{t('account.profile')}</h2>
+      <dl class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <dt class="text-xs text-muted-foreground">{t('account.fullName')}</dt>
+          <dd class:list={['font-medium', !user.full_name && 'text-muted-foreground']}>
+            {user.full_name || t('account.notSet')}
+          </dd>
+        </div>
+        <div class="flex flex-col gap-1">
+          <dt class="text-xs text-muted-foreground">{t('account.email')}</dt>
+          <dd class="font-medium break-all">{user.email}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <a
+      href="/orders"
+      class="group flex items-center gap-4 rounded-lg border border-border bg-card p-5 transition-colors hover:border-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+        <PackageIcon className="size-5" aria-hidden="true" />
+      </span>
+      <span class="flex flex-1 flex-col gap-0.5">
+        <span class="font-semibold">{t('account.orders')}</span>
+        <span class="text-sm text-muted-foreground">{t('account.ordersHint')}</span>
+      </span>
+      <ChevronRightIcon className="size-5 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+    </a>
+  </section>
+</Layout>

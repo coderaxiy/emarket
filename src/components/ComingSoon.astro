@@ -1,0 +1,36 @@
+---
+import { ConstructionIcon } from 'lucide-react';
+import { createT, getLocale } from '@/i18n';
+
+// Honest placeholder for sections whose backend isn't live yet. No fake content.
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+
+const { title, subtitle } = Astro.props;
+const t = createT(getLocale(Astro.cookies));
+---
+
+<section class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:py-12">
+  <div class="flex flex-col gap-1">
+    <h1 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+    {subtitle && <p class="text-muted-foreground">{subtitle}</p>}
+  </div>
+  <div class="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
+    <div class="relative flex size-20 items-center justify-center">
+      <div class="pattern-girih absolute inset-0 rounded-full" aria-hidden="true"></div>
+      <div class="relative flex size-12 items-center justify-center rounded-full bg-muted text-accent">
+        <ConstructionIcon className="size-6" aria-hidden="true" />
+      </div>
+    </div>
+    <span class="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{t('common.comingSoon')}</span>
+    <p class="max-w-md text-sm text-muted-foreground">{t('placeholder.body')}</p>
+    <a
+      href="/"
+      class="text-sm font-medium text-accent underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      {t('common.backHome')}
+    </a>
+  </div>
+</section>

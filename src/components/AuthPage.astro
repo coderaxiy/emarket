@@ -1,0 +1,41 @@
+---
+import { AuthForm } from '@/components/react/AuthForm';
+import { createT, getLocale } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+
+interface Props {
+  mode: 'login' | 'register';
+  next: string;
+}
+
+const { mode, next } = Astro.props;
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+const isLogin = mode === 'login';
+const switchHref = `${isLogin ? '/register' : '/login'}?next=${encodeURIComponent(next)}`;
+---
+
+<Layout title={isLogin ? t('auth.loginTitle') : t('auth.registerTitle')} noindex>
+  <div class="relative isolate px-4 py-10 sm:py-16">
+    <div class="pattern-fade-down absolute inset-x-0 top-0 -z-10 h-48" aria-hidden="true">
+      <div class="pattern-girih size-full"></div>
+    </div>
+    <div class="mx-auto flex w-full max-w-md flex-col gap-6 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      <div class="flex flex-col gap-2">
+        <h1 class="font-display text-2xl font-semibold tracking-tight">
+          {isLogin ? t('auth.loginTitle') : t('auth.registerTitle')}
+        </h1>
+        <p class="text-sm text-muted-foreground">
+          {isLogin ? t('auth.loginSubtitle') : t('auth.registerSubtitle')}
+        </p>
+      </div>
+      <AuthForm client:load locale={locale} mode={mode} next={next} />
+      <p class="text-center text-sm text-muted-foreground">
+        {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}{' '}
+        <a href={switchHref} class="font-medium text-accent underline-offset-4 hover:underline">
+          {isLogin ? t('auth.goRegister') : t('auth.goLogin')}
+        </a>
+      </p>
+    </div>
+  </div>
+</Layout>
