@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n';
 import { useTranslation } from '@/i18n/react';
-import { addCartItem, CART_QUERY_KEY } from '@/lib/api/cart';
+import { addCartItem, CART_QUERY_KEY, fetchCart } from '@/lib/api/cart';
 import { apiErrorMessage } from '@/lib/api/errors';
 import { queryClient } from '@/lib/api/queryClient';
 import type { ProductPublicRead, ProductPublicVariantRead } from '@/lib/api/types';
@@ -189,7 +189,9 @@ function View({ product, axes, keySpecs, moreSpecs }: Omit<ProductViewProps, 'lo
   const addToCart = useMutation({
     mutationFn: () => addCartItem({ product_id: product.id, variant_id: variant?.id ?? null, quantity }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+      // fetchQuery, not invalidate: badges may be disabled (no cart before this add) and
+      // still read the cache.
+      void queryClient.fetchQuery({ queryKey: CART_QUERY_KEY, queryFn: fetchCart, staleTime: 0 });
       toast({ variant: 'success', title: t('product.addedToCart'), description: product.title });
     },
     onError: (error) => toast({ variant: 'error', title: apiErrorMessage(error, t('product.addFailed')) }),

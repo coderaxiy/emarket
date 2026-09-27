@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n/react';
 import type { Theme } from '@/lib/preferences';
 import { AccountMenu } from './AccountMenu';
 import { AppProviders } from './AppProviders';
+import { CartBadge } from './CartCount';
 import { Logo } from './Logo';
 import { PreferencesMenu } from './PreferencesMenu';
 import { SearchBar } from './SearchBar';
@@ -20,6 +21,8 @@ interface HeaderProps {
   currentPath: string;
   /** Current `?q=` on the search page, empty elsewhere. */
   query: string;
+  /** A cart can exist (signed in or `cart_token` cookie): only then fetch the count. */
+  hasCart: boolean;
 }
 
 /**
@@ -35,7 +38,7 @@ export function Header({ locale, ...props }: HeaderProps) {
   );
 }
 
-function HeaderContent({ theme, user, currentPath, query }: Omit<HeaderProps, 'locale'>) {
+function HeaderContent({ theme, user, currentPath, query, hasCart }: Omit<HeaderProps, 'locale'>) {
   const { t } = useTranslation();
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -62,9 +65,11 @@ function HeaderContent({ theme, user, currentPath, query }: Omit<HeaderProps, 'l
           <div className="hidden items-center gap-0.5 md:flex">
             <AccountMenu user={user} currentPath={currentPath} />
             <WithTooltip label={t('header.cartLabel')}>
-              <Button asChild variant="ghost" size="icon" aria-label={t('header.cartLabel')}>
+              <Button asChild variant="ghost" size="icon" className="relative">
                 <a href="/cart">
                   <ShoppingBagIcon aria-hidden="true" />
+                  <span className="sr-only">{t('header.cartLabel')}</span>
+                  <CartBadge hasCart={hasCart} />
                 </a>
               </Button>
             </WithTooltip>
