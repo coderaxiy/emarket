@@ -1,0 +1,17 @@
+---
+import { CheckoutPage } from '@/components/react/CheckoutPage';
+import { createT, getLocale } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+
+// Login required (PROTECTED_PATHS): the middleware sends guests to /login?next=/checkout,
+// and login merges their guest cart into their account.
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+---
+
+<Layout title={t('checkout.title')} noindex>
+  <section class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 sm:py-8">
+    <h1 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{t('checkout.title')}</h1>
+    <CheckoutPage client:load locale={locale} userName={Astro.locals.user?.full_name ?? null} />
+  </section>
+</Layout>

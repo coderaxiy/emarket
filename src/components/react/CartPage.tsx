@@ -14,6 +14,7 @@ import type { CartItemRead, ShopSummaryRead } from '@/lib/api/types';
 import { loginUrl } from '@/lib/auth';
 import { formatMoney, toTiyin } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useHydrated } from '@/hooks/useHydrated';
 import { AppProviders } from './AppProviders';
 
 // The cart page, guests included (backend `cart_token` cookie). Client-rendered: it's
@@ -201,16 +202,10 @@ function CartSkeleton() {
 
 function CheckoutAction({ signedIn, compact = false }: { signedIn: boolean; compact?: boolean }) {
   const { t } = useTranslation();
-  if (signedIn) {
-    return (
-      <Button size={compact ? 'md' : 'lg'} className="rounded-full" disabled title={t('cart.checkoutSoon')}>
-        {t('cart.checkout')}
-      </Button>
-    );
-  }
+  // Guests sign in first; login merges their guest cart and comes back to checkout.
   return (
     <Button asChild size={compact ? 'md' : 'lg'} className="rounded-full">
-      <a href={loginUrl('/cart')}>{t('cart.signInToCheckout')}</a>
+      <a href={signedIn ? '/checkout' : loginUrl('/checkout')}>{signedIn ? t('cart.checkout') : t('cart.signInToCheckout')}</a>
     </Button>
   );
 }
@@ -218,6 +213,8 @@ function CheckoutAction({ signedIn, compact = false }: { signedIn: boolean; comp
 function Cart({ signedIn }: { signedIn: boolean }) {
   const { t, intlLocale } = useTranslation();
   const cart = useQuery({ queryKey: CART_QUERY_KEY, queryFn: fetchCart });
+  // The header badge may have cached the cart already; match the server's skeleton first.
+  const hydrated = useHydrated();
   const summaryRef = useRef<HTMLElement>(null);
   // Below lg the summary sits after the lines; a bottom bar keeps total + button in reach
   // until the summary itself scrolls into view.
@@ -230,12 +227,12 @@ function Cart({ signedIn }: { signedIn: boolean }) {
     const observer = new IntersectionObserver(([entry]) => setSummaryVisible(entry?.isIntersecting ?? false));
     observer.observe(summary);
     return () => observer.disconnect();
-  }, [hasSummary]);
+  }, [hasSummary, hydrated]);
 
   const heading = (
     <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
       {t('nav.cart')}
-      {cart.data && cart.data.item_count > 0 && (
+      {hydrated && cart.data && cart.data.item_count > 0 && (
         <span className="ml-2 text-lg font-medium text-muted-foreground tabular-nums sm:text-xl">
           {t('cart.itemCount', { count: cart.data.item_count })}
         </span>
@@ -243,7 +240,7 @@ function Cart({ signedIn }: { signedIn: boolean }) {
     </h1>
   );
 
-  if (cart.isPending) {
+  if (!hydrated || cart.isPending) {
     return (
       <>
         {heading}
@@ -337,9 +334,7 @@ function Cart({ signedIn }: { signedIn: boolean }) {
             </p>
           )}
           <CheckoutAction signedIn={signedIn} />
-          <p className="text-center text-xs text-muted-foreground">
-            {signedIn ? t('cart.checkoutSoon') : t('cart.guestNote')}
-          </p>
+          {!signedIn && <p className="text-center text-xs text-muted-foreground">{t('cart.guestNote')}</p>}
         </aside>
       </div>
 

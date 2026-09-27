@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import type { Locale } from '@/i18n';
 import { useTranslation } from '@/i18n/react';
 import { CART_QUERY_KEY, fetchCart } from '@/lib/api/cart';
@@ -14,17 +15,6 @@ import { AppProviders } from './AppProviders';
 interface CartBadgeProps {
   hasCart: boolean;
   className?: string;
-}
-
-const noSubscribe = () => () => {};
-
-/**
- * False on the server and while hydrating, true after. The server never knows the count,
- * but the shared cache may already have it when a second island hydrates: rendering it
- * then would not match the server HTML.
- */
-function useHydrated(): boolean {
-  return useSyncExternalStore(noSubscribe, () => true, () => false);
 }
 
 export function CartBadge({ hasCart, className }: CartBadgeProps) {
