@@ -5,7 +5,7 @@
 import { parseTotalCount, toApiParams, type CatalogFilters } from '@/lib/catalog';
 import { CATALOG_ENDPOINTS } from './endpoints';
 import { serverFetch } from './server';
-import type { CategoryAttributePublicRead, CategoryNodeRead, ProductCardRead } from './types';
+import type { CatalogFacetsRead, CategoryAttributePublicRead, CategoryNodeRead, ProductCardRead } from './types';
 
 const TIMEOUT_MS = 5_000;
 /** Matches the API's `Cache-Control: public, max-age=300` on the category tree. */
@@ -48,6 +48,12 @@ export interface ProductPage {
 export async function fetchProducts(filters: CatalogFilters): Promise<ProductPage> {
   const { data, headers } = await getJson<ProductCardRead[]>(CATALOG_ENDPOINTS.products, toApiParams(filters));
   return { items: data, total: parseTotalCount(headers.get('X-Total-Count')) };
+}
+
+/** Brands (with counts) and price range for the filter sidebar; same filters as the grid. */
+export async function fetchFacets(filters: CatalogFilters): Promise<CatalogFacetsRead> {
+  const { data } = await getJson<CatalogFacetsRead>(CATALOG_ENDPOINTS.facets, toApiParams(filters, { paged: false }));
+  return data;
 }
 
 let treeCache: { tree: CategoryNodeRead[]; expires: number } | undefined;

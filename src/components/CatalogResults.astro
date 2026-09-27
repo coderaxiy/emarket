@@ -1,14 +1,16 @@
 ---
+import { CatalogSidebar, CatalogToolbar, type FilterData } from '@/components/react/CatalogFilters';
 import { EmptyState, ErrorState } from '@/components/ui/state';
 import Pagination from '@/components/Pagination.astro';
 import ProductCard from '@/components/ProductCard.astro';
-import { createT, getLocale, INTL_LOCALES } from '@/i18n';
-import { CatalogRequestError, type ProductPage } from '@/lib/api/catalogServer';
+import { createT, getLocale, INTL_LOCALES, pickTranslation } from '@/i18n';
+import { CatalogRequestError, fetchCategoryAttributes, fetchFacets, type ProductPage } from '@/lib/api/catalogServer';
 import { filtersToUrl, PAGE_SIZE, type CatalogFilters } from '@/lib/catalog';
 
 // Shared body of the catalog, category, search and (later) shop pages: title, count,
-// grid, paging, and honest empty / error states. Slots: `breadcrumbs` above the title,
-// default between the title and the grid (e.g. subcategory chips).
+// filters and sort, grid, paging, and honest empty / error states. Slots: `breadcrumbs`
+// above the title, default between the title and the grid (e.g. subcategory chips).
+// Loads the filter data itself; if it fails the grid still renders, with fewer filters.
 interface Props {
   title: string;
   subtitle?: string;
@@ -41,6 +43,30 @@ const resetHref = href({ brandIds: [], priceMin: undefined, priceMax: undefined,
 const retryHref = `${Astro.url.pathname}${Astro.url.search}`;
 
 const page = result instanceof CatalogRequestError ? undefined : result;
+
+// Filters are shown when there's something to narrow, or a narrowing to undo.
+const showControls = narrowed || filters.page > 1 || (page !== undefined && page.items.length > 0);
+const [facetsResult, attributesResult] = showControls
+  ? await Promise.allSettled([
+      fetchFacets(filters),
+      filters.categoryId !== undefined ? fetchCategoryAttributes(filters.categoryId) : Promise.resolve([]),
+    ])
+  : [];
+const facets = facetsResult?.status === 'fulfilled' ? facetsResult.value : undefined;
+const filterData: FilterData = {
+  brands: facets?.brands ?? [],
+  price: facets?.price ?? { min: null, max: null },
+  // Only attributes with fixed options can be offered as checkboxes; `attr=` matches exact values.
+  attributes: (attributesResult?.status === 'fulfilled' ? attributesResult.value : [])
+    .filter((attribute) => attribute.is_filterable && (attribute.options?.length ?? 0) > 0)
+    .map((attribute) => ({
+      key: attribute.key,
+      label: pickTranslation(attribute.translations, locale)?.label ?? attribute.key,
+      unit: attribute.unit,
+      options: attribute.options ?? [],
+    })),
+};
+const islandProps = { locale, filters, basePath, data: filterData };
 const totalPages = page?.total !== undefined ? Math.max(1, Math.ceil(page.total / PAGE_SIZE)) : undefined;
 const linkClass =
   'inline-flex h-10 items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
@@ -64,53 +90,66 @@ const linkClass =
 
   <slot />
 
-  {
-    result instanceof CatalogRequestError ? (
-      result.status === 400 && result.detail ? (
-        <ErrorState title={result.detail}>
-          <a slot="action" href={resetHref} class={linkClass}>
-            {t('catalog.resetFilters')}
-          </a>
-        </ErrorState>
-      ) : (
-        <ErrorState title={t('state.loadFailed')}>
-          <a slot="action" href={retryHref} class={linkClass}>
-            {t('common.retry')}
-          </a>
-        </ErrorState>
+  {showControls && <CatalogToolbar client:load {...islandProps} />}
+
+  <div class:list={['flex flex-col gap-5', showControls && 'lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8']}>
+    {
+      showControls && (
+        <aside class="hidden lg:block">
+          <CatalogSidebar client:media="(min-width: 64rem)" {...islandProps} />
+        </aside>
       )
-    ) : result.items.length === 0 ? (
-      filters.page > 1 ? (
-        <EmptyState title={t('catalog.pageEmpty')}>
-          <a slot="action" href={href({ page: 1 })} class={linkClass}>
-            {t('catalog.firstPage')}
-          </a>
-        </EmptyState>
-      ) : narrowed ? (
-        <EmptyState title={t('catalog.noResultsTitle')} description={t('catalog.filteredEmptyBody')}>
-          <a slot="action" href={resetHref} class={linkClass}>
-            {t('catalog.resetFilters')}
-          </a>
-        </EmptyState>
-      ) : (
-        <EmptyState title={emptyTitle} description={emptyBody} />
-      )
-    ) : (
-      <>
-        <ul class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4">
-          {result.items.map((product, index) => (
-            <li>
-              <ProductCard product={product} eager={index < 4} />
-            </li>
-          ))}
-        </ul>
-        <Pagination
-          page={filters.page}
-          totalPages={totalPages}
-          hasNext={result.items.length === PAGE_SIZE}
-          href={(next) => href({ page: next })}
-        />
-      </>
-    )
-  }
+    }
+    <div class="min-w-0">
+      {
+        result instanceof CatalogRequestError ? (
+          result.status === 400 && result.detail ? (
+            <ErrorState title={result.detail}>
+              <a slot="action" href={resetHref} class={linkClass}>
+                {t('catalog.resetFilters')}
+              </a>
+            </ErrorState>
+          ) : (
+            <ErrorState title={t('state.loadFailed')}>
+              <a slot="action" href={retryHref} class={linkClass}>
+                {t('common.retry')}
+              </a>
+            </ErrorState>
+          )
+        ) : result.items.length === 0 ? (
+          filters.page > 1 ? (
+            <EmptyState title={t('catalog.pageEmpty')}>
+              <a slot="action" href={href({ page: 1 })} class={linkClass}>
+                {t('catalog.firstPage')}
+              </a>
+            </EmptyState>
+          ) : narrowed ? (
+            <EmptyState title={t('catalog.noResultsTitle')} description={t('catalog.filteredEmptyBody')}>
+              <a slot="action" href={resetHref} class={linkClass}>
+                {t('catalog.resetFilters')}
+              </a>
+            </EmptyState>
+          ) : (
+            <EmptyState title={emptyTitle} description={emptyBody} />
+          )
+        ) : (
+          <>
+            <ul class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4">
+              {result.items.map((product, index) => (
+                <li>
+                  <ProductCard product={product} eager={index < 4} />
+                </li>
+              ))}
+            </ul>
+            <Pagination
+              page={filters.page}
+              totalPages={totalPages}
+              hasNext={result.items.length === PAGE_SIZE}
+              href={(next) => href({ page: next })}
+            />
+          </>
+        )
+      }
+    </div>
+  </div>
 </section>
