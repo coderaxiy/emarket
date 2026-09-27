@@ -1,9 +1,44 @@
 ---
 import { ArrowRightIcon, MapPinIcon, ShoppingBasketIcon, WalletIcon } from 'lucide-react';
+import CategoryTiles from '@/components/CategoryTiles.astro';
+import ProductRail from '@/components/ProductRail.astro';
 import { createT, getLocale, type TranslationKey } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
+import { fetchCategoryTree, fetchProducts } from '@/lib/api/catalogServer';
+import type { CategoryNodeRead, ProductCardRead } from '@/lib/api/types';
+import { categoryName, filtersFromUrl, nonEmptyCategories } from '@/lib/catalog';
 
-const t = createT(getLocale(Astro.cookies));
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+
+// Real catalog data only: newest products overall and in the biggest categories. Any
+// failed call just leaves its section out; the editorial parts always render.
+const CATEGORY_RAILS = 3;
+const noFilters = filtersFromUrl(new URLSearchParams());
+const newest = { ...noFilters, sort: 'newest' as const };
+const roots: CategoryNodeRead[] = await fetchCategoryTree().then(nonEmptyCategories, () => []);
+const railCategories = [...roots].sort((a, b) => b.product_count - a.product_count).slice(0, CATEGORY_RAILS);
+const [latest, ...byCategory] = await Promise.allSettled([
+  fetchProducts(newest),
+  ...railCategories.map((category) => fetchProducts({ ...newest, categoryId: category.id })),
+]);
+const RAIL_SIZE = 12;
+/** A category row with fewer products than this (after de-duplication) isn't worth showing. */
+const MIN_RAIL_ITEMS = 4;
+const items = (result: PromiseSettledResult<{ items: ProductCardRead[] }> | undefined) =>
+  result?.status === 'fulfilled' ? result.value.items : [];
+const newArrivals = items(latest).slice(0, RAIL_SIZE);
+
+// With a small catalog the category rows would repeat "New arrivals": skip products
+// already shown above, and drop rows that end up too short.
+const shown = new Set(newArrivals.slice(0, 6).map((product) => product.id));
+const categoryRails = railCategories
+  .map((category, index) => {
+    const products = items(byCategory[index]).filter((product) => !shown.has(product.id)).slice(0, RAIL_SIZE);
+    products.slice(0, 6).forEach((product) => shown.add(product.id));
+    return { category, products };
+  })
+  .filter((rail) => rail.products.length >= MIN_RAIL_ITEMS);
 
 // Editorial copy only — no fake promos, discounts or product rails without an endpoint.
 const STEPS: { icon: typeof MapPinIcon; title: TranslationKey; body: TranslationKey }[] = [
@@ -35,6 +70,24 @@ const STEPS: { icon: typeof MapPinIcon; title: TranslationKey; body: Translation
     </div>
   </section>
 
+  {
+    roots.length > 0 && (
+      <section class="mx-auto flex max-w-7xl flex-col gap-4 px-4 pt-10 sm:pt-12">
+        <div class="flex items-baseline justify-between gap-4">
+          <h2 class="font-display text-xl font-semibold tracking-tight sm:text-2xl">{t('home.categoriesTitle')}</h2>
+          <a href="/catalog" class="shrink-0 text-sm font-medium text-accent hover:underline">
+            {t('product.seeAll')}
+          </a>
+        </div>
+        <CategoryTiles categories={roots.slice(0, 12)} label={t('home.categoriesTitle')} />
+      </section>
+    )
+  }
+
+  <div class="mx-auto max-w-7xl px-4 pt-10 sm:pt-12">
+    <ProductRail title={t('home.newArrivals')} href="/catalog?sort=newest" items={newArrivals} desktopRows={1} />
+  </div>
+
   <section id="how-it-works" class="mx-auto max-w-7xl scroll-mt-24 px-4 py-12 sm:py-16">
     <h2 class="font-display text-xl font-semibold tracking-tight sm:text-2xl">{t('home.stepsTitle')}</h2>
     <ol class="mt-6 grid gap-4 sm:grid-cols-3">
@@ -54,4 +107,19 @@ const STEPS: { icon: typeof MapPinIcon; title: TranslationKey; body: Translation
       }
     </ol>
   </section>
+
+  {
+    categoryRails.length > 0 && (
+      <div class="mx-auto flex max-w-7xl flex-col gap-10 px-4 pb-12 sm:pb-16">
+        {categoryRails.map(({ category, products }) => (
+          <ProductRail
+            title={categoryName(category, locale)}
+            href={`/catalog/${encodeURIComponent(category.slug)}`}
+            items={products}
+            desktopRows={1}
+          />
+        ))}
+      </div>
+    )
+  }
 </Layout>

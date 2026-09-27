@@ -1,0 +1,93 @@
+---
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { createT, getLocale } from '@/i18n';
+
+// Plain links, so paging works without JS and every page is a shareable URL.
+// With a known total it shows numbered pages; without one, only previous / next.
+interface Props {
+  page: number;
+  /** From `X-Total-Count` ÷ page size. Undefined when the header is missing. */
+  totalPages?: number;
+  /** Used when `totalPages` is unknown: true when the last response was a full page. */
+  hasNext: boolean;
+  href: (page: number) => string;
+}
+
+const { page, totalPages, hasNext, href } = Astro.props;
+const t = createT(getLocale(Astro.cookies));
+
+const next = totalPages === undefined ? hasNext : page < totalPages;
+const prev = page > 1;
+
+/** 1 … 4 5 6 … 20 — first, last, and the current page's neighbours. */
+function pageItems(current: number, last: number): (number | 'gap')[] {
+  const pages = [...new Set([1, current - 1, current, current + 1, last])]
+    .filter((n) => n >= 1 && n <= last)
+    .sort((a, b) => a - b);
+  const items: (number | 'gap')[] = [];
+  for (const [index, n] of pages.entries()) {
+    const before = pages[index - 1];
+    if (before !== undefined && n - before > 1) items.push(n - before === 2 ? n - 1 : 'gap');
+    items.push(n);
+  }
+  return items;
+}
+
+const items = totalPages !== undefined && totalPages > 1 ? pageItems(page, totalPages) : [];
+const show = prev || next;
+
+const base =
+  'inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+const idle = 'text-foreground hover:bg-muted';
+---
+
+{
+  show && (
+    <nav aria-label={t('catalog.pagination')} class="flex items-center justify-center gap-1 py-6">
+      {prev ? (
+        <a href={href(page - 1)} rel="prev" class:list={[base, idle]}>
+          <ChevronLeftIcon className="size-4" aria-hidden="true" />
+          <span class="max-sm:sr-only">{t('catalog.previous')}</span>
+        </a>
+      ) : (
+        <span class:list={[base, 'pointer-events-none text-muted-foreground opacity-50']} aria-hidden="true">
+          <ChevronLeftIcon className="size-4" />
+          <span class="max-sm:sr-only">{t('catalog.previous')}</span>
+        </span>
+      )}
+
+      {items.map((item) =>
+        item === 'gap' ? (
+          <span class="px-1 text-muted-foreground" aria-hidden="true">
+            …
+          </span>
+        ) : item === page ? (
+          <span aria-current="page" class:list={[base, 'bg-accent text-accent-foreground']}>
+            <span class="sr-only">{t('catalog.pageLabel', { page: item })}</span>
+            <span aria-hidden="true">{item}</span>
+          </span>
+        ) : (
+          <a
+            href={href(item)}
+            aria-label={t('catalog.pageLabel', { page: item })}
+            class:list={[base, idle, Math.abs(item - page) > 1 && 'max-sm:hidden']}
+          >
+            {item}
+          </a>
+        ),
+      )}
+
+      {next ? (
+        <a href={href(page + 1)} rel="next" class:list={[base, idle]}>
+          <span class="max-sm:sr-only">{t('catalog.next')}</span>
+          <ChevronRightIcon className="size-4" aria-hidden="true" />
+        </a>
+      ) : (
+        <span class:list={[base, 'pointer-events-none text-muted-foreground opacity-50']} aria-hidden="true">
+          <span class="max-sm:sr-only">{t('catalog.next')}</span>
+          <ChevronRightIcon className="size-4" />
+        </span>
+      )}
+    </nav>
+  )
+}

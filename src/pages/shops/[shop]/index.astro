@@ -1,0 +1,149 @@
+---
+import { SearchIcon, StarIcon, StoreIcon } from 'lucide-react';
+import CatalogResults from '@/components/CatalogResults.astro';
+import { ErrorState } from '@/components/ui/state';
+import { createT, getLocale, INTL_LOCALES } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+import {
+  CatalogRequestError,
+  fetchProducts,
+  fetchShopBySlug,
+  type ProductPage,
+} from '@/lib/api/catalogServer';
+import type { ShopPublicRead } from '@/lib/api/types';
+import { filtersFromUrl } from '@/lib/catalog';
+import { formatDate, formatNumber } from '@/lib/format';
+
+// A shop's storefront: banner and profile, then its products with the same filters,
+// sort and paging as the catalog (`GET /products?shop_id=`). `?q=` searches in the shop.
+// Only real data: the rating is shown only when the shop has ratings.
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+const intlLocale = INTL_LOCALES[locale];
+const shopSlug = Astro.params.shop ?? '';
+
+let shop: ShopPublicRead | undefined;
+try {
+  shop = await fetchShopBySlug(shopSlug);
+} catch (error) {
+  if (error instanceof CatalogRequestError && error.status === 404) return Astro.rewrite('/404');
+  shop = undefined;
+}
+
+const filters = { ...filtersFromUrl(Astro.url.searchParams), shopId: shop?.id };
+let result: ProductPage | CatalogRequestError | undefined;
+if (shop) {
+  try {
+    result = await fetchProducts(filters);
+  } catch (error) {
+    result = error instanceof CatalogRequestError ? error : new CatalogRequestError(0);
+  }
+}
+
+const basePath = `/shops/${encodeURIComponent(shopSlug)}`;
+const rating = shop?.rating_avg ? Number.parseFloat(shop.rating_avg) : undefined;
+const ratingText = rating !== undefined ? rating.toFixed(1).replace('.', locale === 'en' ? '.' : ',') : undefined;
+const metaDescription = shop?.description?.replace(/\s+/g, ' ').trim().slice(0, 160) || undefined;
+const retryHref = `${Astro.url.pathname}${Astro.url.search}`;
+---
+
+<Layout title={shop?.name ?? t('nav.catalog')} description={metaDescription} ogImage={shop?.banner_url ?? shop?.logo_url ?? undefined} noindex={filters.q !== ''}>
+  {
+    shop && result ? (
+      <>
+        <section class="mx-auto max-w-7xl px-4 pt-4 sm:pt-6">
+          <div class="overflow-hidden rounded-xl border border-border bg-card">
+            <div class="relative aspect-[3/1] bg-accent sm:aspect-[5/1]">
+              {shop.banner_url ? (
+                <img src={shop.banner_url} alt="" class="size-full object-cover" fetchpriority="high" />
+              ) : (
+                <div class="pattern-fade-left absolute inset-0" aria-hidden="true">
+                  <div class="pattern-girih size-full opacity-40 [--color-accent:var(--accent-foreground)]" />
+                </div>
+              )}
+            </div>
+
+            <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+              <div class="flex min-w-0 gap-4">
+                <span class="relative z-10 -mt-12 flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-muted text-muted-foreground shadow-sm sm:-mt-16 sm:size-24">
+                  {shop.logo_url ? (
+                    <img src={shop.logo_url} alt="" class="size-full object-cover" />
+                  ) : (
+                    <StoreIcon className="size-8" aria-hidden="true" />
+                  )}
+                </span>
+                <div class="flex min-w-0 flex-col gap-1">
+                  <h1 class="font-display text-xl font-semibold tracking-tight text-balance sm:text-2xl">{shop.name}</h1>
+                  <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    {ratingText && shop.rating_count > 0 && (
+                      <span class="inline-flex items-center gap-1 text-foreground">
+                        <StarIcon className="size-4 fill-warning text-warning" aria-hidden="true" />
+                        <span class="font-medium tabular-nums">{ratingText}</span>
+                        <span class="text-muted-foreground tabular-nums">
+                          {t('shop.ratingCount', { count: formatNumber(shop.rating_count, intlLocale) })}
+                        </span>
+                      </span>
+                    )}
+                    <span>{t('shop.since', { date: formatDate(shop.created_at, intlLocale, { dateStyle: 'long' }) })}</span>
+                  </p>
+                </div>
+              </div>
+
+              <form role="search" method="get" action={basePath} class="relative w-full sm:max-w-xs">
+                <label for="shop-search" class="sr-only">
+                  {t('shop.searchLabel', { shop: shop.name })}
+                </label>
+                <input
+                  id="shop-search"
+                  type="search"
+                  name="q"
+                  value={filters.q}
+                  placeholder={t('shop.searchPlaceholder')}
+                  autocomplete="off"
+                  enterkeyhint="search"
+                  class="h-11 w-full rounded-full border border-input bg-background pr-12 pl-4 text-base outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:text-sm"
+                />
+                <button
+                  type="submit"
+                  aria-label={t('header.searchSubmit')}
+                  class="absolute top-1 right-1 bottom-1 inline-flex w-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <SearchIcon className="size-4" aria-hidden="true" />
+                </button>
+              </form>
+            </div>
+
+            {shop.description && (
+              <p class="border-t border-border px-4 py-3 text-sm text-pretty whitespace-pre-line text-muted-foreground sm:px-6">
+                {shop.description}
+              </p>
+            )}
+          </div>
+        </section>
+
+        <CatalogResults
+          title={t('shop.products')}
+          titleAs="h2"
+          subtitle={filters.q ? t('catalog.searchResultsFor', { query: filters.q }) : undefined}
+          filters={filters}
+          basePath={basePath}
+          result={result}
+          emptyTitle={filters.q ? t('catalog.noResultsTitle') : t('shop.emptyTitle')}
+          emptyBody={filters.q ? t('catalog.noResultsBody') : t('shop.emptyBody')}
+        />
+      </>
+    ) : (
+      <section class="mx-auto max-w-7xl px-4 py-8">
+        <ErrorState title={t('state.loadFailed')}>
+          <a
+            slot="action"
+            href={retryHref}
+            class="inline-flex h-10 items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {t('common.retry')}
+          </a>
+        </ErrorState>
+      </section>
+    )
+  }
+</Layout>

@@ -1,0 +1,211 @@
+---
+import { ChevronRightIcon } from 'lucide-react';
+import ProductRail from '@/components/ProductRail.astro';
+import { ProductView, type ProductViewData, type SpecRow, type VariantAxis } from '@/components/react/ProductView';
+import { ErrorState } from '@/components/ui/state';
+import { createT, getLocale, INTL_LOCALES, pickTranslation } from '@/i18n';
+import Layout from '@/layouts/Layout.astro';
+import { CatalogRequestError, fetchCategoryAttributes, fetchProductBySlug, fetchProducts } from '@/lib/api/catalogServer';
+import type { CategoryAttributePublicRead, ProductCardRead, ProductPublicAttributeRead, ProductPublicRead } from '@/lib/api/types';
+import { categoryName, filtersFromUrl } from '@/lib/catalog';
+
+// Product page at its readable URL. Product slugs are unique per shop; renamed products
+// keep resolving by their old slug, and we 301 to the current one.
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+const shopSlug = Astro.params.shop ?? '';
+const productSlug = Astro.params.product ?? '';
+
+let product: ProductPublicRead | undefined;
+let failed = false;
+try {
+  product = await fetchProductBySlug(shopSlug, productSlug);
+} catch (error) {
+  if (error instanceof CatalogRequestError && error.status === 404) return Astro.rewrite('/404');
+  failed = true;
+}
+
+if (product && (product.slug !== productSlug || product.shop.slug !== shopSlug)) {
+  const canonical = `/shops/${encodeURIComponent(product.shop.slug)}/${encodeURIComponent(product.slug)}`;
+  return Astro.redirect(canonical, 301);
+}
+
+// In parallel: labels and order for the variant picker (raw keys without them), and the
+// two rows below the product. Any of them failing just leaves that part out.
+const RAIL_SIZE = 12;
+const noFilters = filtersFromUrl(new URLSearchParams());
+const [attributesResult, similarResult, shopResult] = product
+  ? await Promise.allSettled([
+      product.has_variants ? fetchCategoryAttributes(product.category.id) : Promise.resolve([]),
+      fetchProducts({ ...noFilters, categoryId: product.category.id }),
+      fetchProducts({ ...noFilters, shopId: product.shop.id }),
+    ])
+  : [];
+const categoryAttributes: CategoryAttributePublicRead[] = attributesResult?.status === 'fulfilled' ? attributesResult.value : [];
+function rail(result: PromiseSettledResult<{ items: ProductCardRead[] }> | undefined, exclude: number[]): ProductCardRead[] {
+  if (result?.status !== 'fulfilled') return [];
+  return result.value.items.filter((item) => !exclude.includes(item.id)).slice(0, RAIL_SIZE);
+}
+const similar = product ? rail(similarResult, [product.id]) : [];
+const fromShop = product ? rail(shopResult, [product.id, ...similar.map((item) => item.id)]) : [];
+
+function buildAxes(source: ProductPublicRead): VariantAxis[] {
+  const keys = [...new Set(source.variants.flatMap((variant) => Object.keys(variant.attributes)))];
+  const byKey = new Map(categoryAttributes.map((attribute) => [attribute.key, attribute]));
+  const rank = (key: string) => byKey.get(key)?.sort_order ?? Number.MAX_SAFE_INTEGER;
+  return keys
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    .map((key) => {
+      const attribute = byKey.get(key);
+      const values = [...new Set(source.variants.map((variant) => String(variant.attributes[key] ?? '')))].filter(Boolean);
+      const order = attribute?.options ?? [];
+      const position = (value: string) => (order.includes(value) ? order.indexOf(value) : order.length);
+      const label = attribute ? (pickTranslation(attribute.translations, locale)?.label ?? key) : key;
+      return {
+        key,
+        label: attribute?.unit ? `${label}, ${attribute.unit}` : label,
+        options: values.sort((a, b) => position(a) - position(b)),
+      };
+    });
+}
+
+const numberFormat = new Intl.NumberFormat(INTL_LOCALES[locale]);
+function formatValue(attribute: ProductPublicAttributeRead): string {
+  const { value, unit } = attribute;
+  let text: string;
+  if (typeof value === 'boolean') text = value ? t('product.yes') : t('product.no');
+  else if (Array.isArray(value)) text = value.join(', ');
+  else if (typeof value === 'number') text = numberFormat.format(value);
+  else text = value;
+  return unit ? `${text} ${unit}` : text;
+}
+
+const axes = product?.has_variants ? buildAxes(product) : [];
+const specs: SpecRow[] = product
+  ? product.attributes
+      .filter((attribute) => !attribute.is_variant_defining)
+      .map((attribute) => ({
+        label: pickTranslation(attribute.label_translations, locale)?.label ?? attribute.key,
+        value: formatValue(attribute),
+      }))
+  : [];
+const KEY_SPECS = 5;
+const viewData: ProductViewData | undefined = product && {
+  id: product.id,
+  title: product.title,
+  has_variants: product.has_variants,
+  price_min: product.price_min,
+  in_stock: product.in_stock,
+  platform_sku: product.platform_sku,
+  variants: product.variants,
+  shop: product.shop,
+  brand: product.brand,
+  images: product.images.map(({ id, url }) => ({ id, url })),
+};
+const crumbs = product ? [...product.category.ancestors, product.category] : [];
+const metaDescription = product?.description?.replace(/\s+/g, ' ').trim().slice(0, 160) || undefined;
+const retryHref = `${Astro.url.pathname}${Astro.url.search}`;
+const pillClass =
+  'inline-flex h-9 items-center rounded-full bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent/15 hover:text-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+---
+
+<Layout title={product?.title ?? t('nav.catalog')} description={metaDescription} ogImage={product?.images[0]?.url}>
+  {
+    product && viewData ? (
+      <article class="mx-auto flex max-w-7xl flex-col gap-6 px-4 pt-6 pb-24 sm:pt-8 lg:pb-8">
+        {/* pb-24: room for the sticky price bar below lg. */}
+        <nav aria-label={t('catalog.breadcrumbs')}>
+          <ol class="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            <li>
+              <a href="/catalog" class="hover:text-foreground hover:underline">
+                {t('nav.catalog')}
+              </a>
+            </li>
+            {crumbs.map((crumb) => (
+              <li class="flex items-center gap-1">
+                <ChevronRightIcon className="size-3.5" aria-hidden="true" />
+                <a href={`/catalog/${encodeURIComponent(crumb.slug)}`} class="hover:text-foreground hover:underline">
+                  {categoryName(crumb, locale)}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        <ProductView
+          client:load
+          locale={locale}
+          product={viewData}
+          axes={axes}
+          keySpecs={specs.slice(0, KEY_SPECS)}
+          moreSpecs={specs.length > KEY_SPECS}
+        />
+
+        {(product.description || specs.length > 0) && (
+          <div class="flex flex-col gap-6 border-t border-border pt-6">
+            <nav aria-label={t('product.aboutProduct')} class="flex flex-wrap gap-2">
+              {product.description && (
+                <a href="#description" class={pillClass}>
+                  {t('product.description')}
+                </a>
+              )}
+              {specs.length > 0 && (
+                <a href="#specs" class={pillClass}>
+                  {t('product.specs')}
+                </a>
+              )}
+            </nav>
+            <div class="grid gap-10 lg:grid-cols-2 lg:gap-12">
+              {product.description && (
+                <section id="description" class="flex scroll-mt-24 flex-col gap-3">
+                  <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.description')}</h2>
+                  <p class="max-w-prose text-pretty whitespace-pre-line text-foreground/90">{product.description}</p>
+                </section>
+              )}
+              {specs.length > 0 && (
+                <section id="specs" class="flex scroll-mt-24 flex-col gap-3">
+                  <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.specs')}</h2>
+                  <dl class="divide-y divide-border rounded-lg border border-border bg-card">
+                    {specs.map((spec) => (
+                      <div class="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm">
+                        <dt class="text-muted-foreground">{spec.label}</dt>
+                        <dd class="font-medium tabular-nums">{spec.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              )}
+            </div>
+          </div>
+        )}
+
+        <ProductRail
+          title={t('product.similar')}
+          href={`/catalog/${encodeURIComponent(product.category.slug)}`}
+          items={similar}
+          divided
+        />
+        <ProductRail
+          title={t('product.moreFromShop', { shop: product.shop.name })}
+          href={`/shops/${encodeURIComponent(product.shop.slug)}`}
+          items={fromShop}
+          divided
+        />
+      </article>
+    ) : (
+      failed && (
+        <section class="mx-auto max-w-7xl px-4 py-8">
+          <ErrorState title={t('state.loadFailed')}>
+            <a
+              slot="action"
+              href={retryHref}
+              class="inline-flex h-10 items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {t('common.retry')}
+            </a>
+          </ErrorState>
+        </section>
+      )
+    )
+  }
+</Layout>

@@ -1,11 +1,16 @@
 ---
-import ComingSoon from '@/components/ComingSoon.astro';
+import { CartPage } from '@/components/react/CartPage';
 import { createT, getLocale } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
 
-const t = createT(getLocale(Astro.cookies));
+// Public: guests have a cart too. The island loads it in the browser, where the
+// `access_token` / `cart_token` cookies are, and renders the heading (it shows the count).
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
 ---
 
-<Layout title={t('placeholder.cartTitle')} noindex>
-  <ComingSoon title={t('placeholder.cartTitle')} />
+<Layout title={t('nav.cart')} noindex>
+  <section class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 sm:py-8">
+    <CartPage client:load locale={locale} signedIn={Astro.locals.user !== null} />
+  </section>
 </Layout>

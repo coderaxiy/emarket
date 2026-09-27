@@ -1,0 +1,41 @@
+---
+import { FolderIcon } from 'lucide-react';
+import { getLocale } from '@/i18n';
+import type { CategoryNodeRead } from '@/lib/api/types';
+import { categoryName } from '@/lib/catalog';
+
+// Tiles linking to categories (icon + localized name), e.g. the top-level ones.
+interface Props {
+  categories: CategoryNodeRead[];
+  label: string;
+}
+
+const { categories, label } = Astro.props;
+const locale = getLocale(Astro.cookies);
+---
+
+{
+  categories.length > 0 && (
+    <nav aria-label={label}>
+      <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {categories.map((category) => (
+          <li>
+            <a
+              href={`/catalog/${encodeURIComponent(category.slug)}`}
+              class="flex h-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
+                {category.icon_url ? (
+                  <img src={category.icon_url} alt="" class="size-7 object-contain" loading="lazy" />
+                ) : (
+                  <FolderIcon className="size-5" aria-hidden="true" />
+                )}
+              </span>
+              <span class="line-clamp-2">{categoryName(category, locale)}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

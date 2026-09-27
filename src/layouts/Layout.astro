@@ -31,6 +31,8 @@ const ogImageUrl = ogImage ? new URL(ogImage, Astro.url.origin).href : undefined
 
 const currentPath = `${Astro.url.pathname}${Astro.url.search}`;
 const query = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ?? '') : '';
+// Only then can a cart exist; otherwise the badge doesn't call GET /cart (which creates one).
+const hasCart = Astro.locals.user !== null || Astro.cookies.has('cart_token');
 ---
 
 <!doctype html>
@@ -74,11 +76,12 @@ const query = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q'
       user={toSessionUser(Astro.locals.user)}
       currentPath={currentPath}
       query={query}
+      hasCart={hasCart}
     />
     <main id="main" class="flex-1">
       <slot />
     </main>
     <Footer />
-    <MobileTabBar />
+    <MobileTabBar hasCart={hasCart} />
   </body>
 </html>

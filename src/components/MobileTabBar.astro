@@ -1,8 +1,17 @@
 ---
 import { HomeIcon, LayoutGridIcon, SearchIcon, ShoppingBagIcon, UserIcon } from 'lucide-react';
+import { CartBadgeIsland } from '@/components/react/CartCount';
 import { createT, getLocale, type TranslationKey } from '@/i18n';
 
-const t = createT(getLocale(Astro.cookies));
+interface Props {
+  /** See CartBadge: fetch the count only when a cart can exist. */
+  hasCart: boolean;
+}
+
+const { hasCart } = Astro.props;
+const locale = getLocale(Astro.cookies);
+
+const t = createT(locale);
 const { pathname } = Astro.url;
 
 const TABS: { href: string; label: TranslationKey; icon: typeof HomeIcon }[] = [
@@ -35,7 +44,10 @@ const isActive = (href: string) =>
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
               ]}
             >
-              <Icon className="size-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+              <span class="relative">
+                <Icon className="size-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+                {href === '/cart' && <CartBadgeIsland client:load locale={locale} hasCart={hasCart} />}
+              </span>
               <span class="max-w-full truncate px-1">{t(label)}</span>
             </a>
           </li>

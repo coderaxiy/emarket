@@ -1,5 +1,8 @@
-/** Routes that need a session. Everything else is public. Prefix match. */
-export const PROTECTED_PATHS = ['/cart', '/checkout', '/orders', '/account'] as const;
+/**
+ * Routes that need a session. Everything else is public. Prefix match. `/cart` is public:
+ * guests have a cart too (the backend's `cart_token` cookie).
+ */
+export const PROTECTED_PATHS = ['/checkout', '/orders', '/account'] as const;
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
