@@ -25,6 +25,7 @@ export const uz: Dictionary = {
     searchLabel: 'Mahsulotlarni qidirish',
     searchSubmit: 'Qidirish',
     catalogButton: 'Katalog',
+    allInCategory: '{category} boʻlimidagi hammasi',
     account: 'Hisob',
     cartLabel: 'Savat',
     signIn: 'Kirish',

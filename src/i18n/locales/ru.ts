@@ -25,6 +25,7 @@ export const ru: Dictionary = {
     searchLabel: 'Поиск товаров',
     searchSubmit: 'Найти',
     catalogButton: 'Каталог',
+    allInCategory: 'Всё в разделе «{category}»',
     account: 'Аккаунт',
     cartLabel: 'Корзина',
     signIn: 'Войти',

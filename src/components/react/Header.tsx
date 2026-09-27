@@ -1,4 +1,4 @@
-import { LayoutGridIcon, ShoppingBagIcon } from 'lucide-react';
+import { ShoppingBagIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toast';
 import { WithTooltip } from '@/components/ui/tooltip';
@@ -8,6 +8,7 @@ import type { Theme } from '@/lib/preferences';
 import { AccountMenu } from './AccountMenu';
 import { AppProviders } from './AppProviders';
 import { CartBadge } from './CartCount';
+import { CatalogMenu } from './CatalogMenu';
 import { Logo } from './Logo';
 import { PreferencesMenu } from './PreferencesMenu';
 import { SearchBar } from './SearchBar';
@@ -51,12 +52,7 @@ function HeaderContent({ theme, user, currentPath, query, hasCart }: Omit<Header
           <Logo className="h-8" />
         </a>
 
-        <Button asChild variant="accent" className="hidden h-11 rounded-full px-5 md:inline-flex">
-          <a href="/catalog">
-            <LayoutGridIcon aria-hidden="true" />
-            {t('header.catalogButton')}
-          </a>
-        </Button>
+        <CatalogMenu />
 
         <SearchBar key={query} defaultQuery={query} />
 

@@ -25,6 +25,7 @@ export const en = {
     searchLabel: 'Search products',
     searchSubmit: 'Search',
     catalogButton: 'Catalog',
+    allInCategory: 'All in {category}',
     account: 'Account',
     cartLabel: 'Cart',
     signIn: 'Sign in',
