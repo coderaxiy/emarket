@@ -5,7 +5,13 @@
 import { parseTotalCount, toApiParams, type CatalogFilters } from '@/lib/catalog';
 import { CATALOG_ENDPOINTS } from './endpoints';
 import { serverFetch } from './server';
-import type { CatalogFacetsRead, CategoryAttributePublicRead, CategoryNodeRead, ProductCardRead } from './types';
+import type {
+  CatalogFacetsRead,
+  CategoryAttributePublicRead,
+  CategoryNodeRead,
+  ProductCardRead,
+  ProductPublicRead,
+} from './types';
 
 const TIMEOUT_MS = 5_000;
 /** Matches the API's `Cache-Control: public, max-age=300` on the category tree. */
@@ -53,6 +59,12 @@ export async function fetchProducts(filters: CatalogFilters): Promise<ProductPag
 /** Brands (with counts) and price range for the filter sidebar; same filters as the grid. */
 export async function fetchFacets(filters: CatalogFilters): Promise<CatalogFacetsRead> {
   const { data } = await getJson<CatalogFacetsRead>(CATALOG_ENDPOINTS.facets, toApiParams(filters, { paged: false }));
+  return data;
+}
+
+/** A product by its readable URL. Old (renamed) product slugs still resolve; compare slugs to redirect. */
+export async function fetchProductBySlug(shopSlug: string, productSlug: string): Promise<ProductPublicRead> {
+  const { data } = await getJson<ProductPublicRead>(CATALOG_ENDPOINTS.productBySlug(shopSlug, productSlug));
   return data;
 }
 
