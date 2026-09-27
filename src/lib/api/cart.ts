@@ -5,7 +5,7 @@
 
 import { apiClient } from './client';
 import { CART_ENDPOINTS } from './endpoints';
-import type { CartItemAddRequest, CartItemRead, CartRead } from './types';
+import type { CartItemAddRequest, CartItemRead, CartItemUpdateRequest, CartRead } from './types';
 
 /** Every cart query and mutation uses this key, so one invalidation refreshes badge and page. */
 export const CART_QUERY_KEY = ['cart'] as const;
@@ -19,4 +19,14 @@ export async function fetchCart(): Promise<CartRead> {
 export async function addCartItem(body: CartItemAddRequest): Promise<CartItemRead> {
   const { data } = await apiClient.post<CartItemRead>(CART_ENDPOINTS.items, body);
   return data;
+}
+
+/** Sets the quantity. Also moves `price_snapshot` to the current price: that's how a buyer accepts a changed price. */
+export async function updateCartItem(cartItemId: number, quantity: number): Promise<CartItemRead> {
+  const { data } = await apiClient.patch<CartItemRead>(CART_ENDPOINTS.item(cartItemId), { quantity } satisfies CartItemUpdateRequest);
+  return data;
+}
+
+export async function removeCartItem(cartItemId: number): Promise<void> {
+  await apiClient.delete(CART_ENDPOINTS.item(cartItemId));
 }
