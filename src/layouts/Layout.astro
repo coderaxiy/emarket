@@ -1,0 +1,51 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import PageProgress from '@/components/PageProgress.astro';
+import { getTheme } from '@/lib/preferences';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Absolute or root-relative image for Open Graph previews. */
+  ogImage?: string;
+  /** Set on pages that must not be indexed (cart, checkout, account). */
+  noindex?: boolean;
+}
+
+const { title, description, ogImage, noindex = false } = Astro.props;
+
+const theme = getTheme(Astro.cookies);
+// TODO(phase 2): read from the `locale` cookie via getLocale(Astro.cookies). Default is `uz`.
+const lang = 'uz';
+const canonical = new URL(Astro.url.pathname, Astro.url.origin).href;
+const ogImageUrl = ogImage ? new URL(ogImage, Astro.url.origin).href : undefined;
+---
+
+<!doctype html>
+<html lang={lang} data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+    <meta name="twitter:card" content={ogImageUrl ? 'summary_large_image' : 'summary'} />
+
+    <ClientRouter />
+  </head>
+  <body class="min-h-dvh">
+    <PageProgress />
+    <slot />
+  </body>
+</html>

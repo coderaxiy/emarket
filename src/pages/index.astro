@@ -1,0 +1,18 @@
+---
+// Phase 1 placeholder: proves the layout, tokens and fonts render.
+// Replaced by the real home page (with t() strings) in later phases.
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout title="emarket" description="emarket — onlayn bozor">
+  <main class="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 sm:py-20">
+    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-5xl">emarket</h1>
+    <div class="pattern-girih h-8 w-full" aria-hidden="true"></div>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="rounded-lg bg-muted p-4 text-sm text-muted-foreground">muted</div>
+      <div class="rounded-lg bg-card p-4 text-sm shadow-sm">card</div>
+      <div class="rounded-lg bg-primary p-4 text-sm font-semibold text-primary-foreground">primary</div>
+      <div class="rounded-lg bg-accent p-4 text-sm font-semibold text-accent-foreground">accent</div>
+    </div>
+  </main>
+</Layout>

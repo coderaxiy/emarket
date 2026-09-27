@@ -1,0 +1,68 @@
+---
+// Top-of-page progress bar for ClientRouter navigations.
+// Driven by `transform` only. Do NOT use Tailwind v4 `scale-x-*` here: in v4 it sets the
+// separate CSS `scale` property, which composes with `transform` and pins the bar at 0 width.
+---
+
+<div
+  id="page-progress"
+  class="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 origin-left bg-primary opacity-0"
+  style="transform: scaleX(0)"
+  role="presentation"
+  transition:persist
+>
+</div>
+
+<script>
+  const START_DELAY_MS = 120;
+
+  let startTimer: ReturnType<typeof setTimeout> | undefined;
+  let trickleTimer: ReturnType<typeof setInterval> | undefined;
+  let progress = 0;
+
+  function bar(): HTMLElement | null {
+    return document.getElementById('page-progress');
+  }
+
+  function render(el: HTMLElement, value: number, visible: boolean) {
+    el.style.transform = `scaleX(${value})`;
+    el.style.opacity = visible ? '1' : '0';
+  }
+
+  function start() {
+    clearTimeout(startTimer);
+    clearInterval(trickleTimer);
+    // Fast navigations finish before the bar would be noticed — don't flash it.
+    startTimer = setTimeout(() => {
+      const el = bar();
+      if (!el) return;
+      progress = 0.08;
+      el.style.transition = 'transform 200ms ease-out, opacity 150ms linear';
+      render(el, progress, true);
+      trickleTimer = setInterval(() => {
+        // Approach 0.9 asymptotically; the real finish jumps to 1.
+        progress += (0.9 - progress) * 0.1;
+        render(el, progress, true);
+      }, 200);
+    }, START_DELAY_MS);
+  }
+
+  function finish() {
+    clearTimeout(startTimer);
+    clearInterval(trickleTimer);
+    const el = bar();
+    if (!el || progress === 0) return;
+    render(el, 1, true);
+    setTimeout(() => {
+      render(el, 1, false);
+      setTimeout(() => {
+        el.style.transition = 'none';
+        progress = 0;
+        render(el, 0, false);
+      }, 200);
+    }, 150);
+  }
+
+  document.addEventListener('astro:before-preparation', start);
+  document.addEventListener('astro:page-load', finish);
+</script>
