@@ -4,6 +4,7 @@ import Footer from '@/components/Footer.astro';
 import MobileTabBar from '@/components/MobileTabBar.astro';
 import PageProgress from '@/components/PageProgress.astro';
 import { Header } from '@/components/react/Header';
+import { ToastRegion } from '@/components/react/ToastRegion';
 import { toSessionUser } from '@/components/react/types';
 import { createT, getLocale } from '@/i18n';
 import { getTheme } from '@/lib/preferences';
@@ -83,5 +84,6 @@ const hasCart = Astro.locals.user !== null || Astro.cookies.has('cart_token');
     </main>
     <Footer />
     <MobileTabBar hasCart={hasCart} />
+    <ToastRegion client:load transition:persist="toast-region" locale={locale} />
   </body>
 </html>
