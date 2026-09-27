@@ -182,6 +182,15 @@ export const uz: Dictionary = {
     signInToCheckout: 'Buyurtma berish uchun kiring',
     guestNote: 'Kirganingizda yoki roʻyxatdan oʻtganingizda savatingiz saqlanib qoladi.',
   },
+  shop: {
+    products: 'Mahsulotlar',
+    ratingCount: 'Baholar: {count}',
+    since: 'emarketga qoʻshilgan sana: {date}',
+    searchLabel: '{shop} doʻkonida qidirish',
+    searchPlaceholder: 'Shu doʻkonda qidirish',
+    emptyTitle: 'Hozircha mahsulot yoʻq',
+    emptyBody: 'Bu doʻkon hali mahsulot qoʻshmagan. Keyinroq qarab koʻring.',
+  },
   placeholder: {
     ordersTitle: 'Buyurtmalarim',
     body: 'Bu boʻlim tayyorlanmoqda. U bozorning hali ishga tushmagan qismiga bogʻliq.',

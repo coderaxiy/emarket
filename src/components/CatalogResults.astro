@@ -13,6 +13,8 @@ import { filtersToUrl, PAGE_SIZE, type CatalogFilters } from '@/lib/catalog';
 // Loads the filter data itself; if it fails the grid still renders, with fewer filters.
 interface Props {
   title: string;
+  /** `h2` when the page already has its own `h1` (the shop page). */
+  titleAs?: 'h1' | 'h2';
   subtitle?: string;
   filters: CatalogFilters;
   /** The page's path without query, e.g. `/catalog/phones`. Paging links keep the filters. */
@@ -22,7 +24,7 @@ interface Props {
   emptyBody: string;
 }
 
-const { title, subtitle, filters, basePath, result, emptyTitle, emptyBody } = Astro.props;
+const { title, titleAs: Title = 'h1', subtitle, filters, basePath, result, emptyTitle, emptyBody } = Astro.props;
 const locale = getLocale(Astro.cookies);
 const t = createT(locale);
 const numberFormat = new Intl.NumberFormat(INTL_LOCALES[locale]);
@@ -76,7 +78,14 @@ const linkClass =
   <slot name="breadcrumbs" />
   <header class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
     <div class="flex min-w-0 flex-col gap-1">
-      <h1 class="font-display text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{title}</h1>
+      <Title
+        class:list={[
+          'font-display font-semibold tracking-tight text-balance',
+          Title === 'h1' ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl',
+        ]}
+      >
+        {title}
+      </Title>
       {subtitle && <p class="text-muted-foreground">{subtitle}</p>}
     </div>
     {

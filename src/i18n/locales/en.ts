@@ -182,6 +182,15 @@ export const en = {
     signInToCheckout: 'Sign in to check out',
     guestNote: 'Your cart is kept when you sign in or create an account.',
   },
+  shop: {
+    products: 'Products',
+    ratingCount: 'Ratings: {count}',
+    since: 'On emarket since {date}',
+    searchLabel: 'Search in {shop}',
+    searchPlaceholder: 'Search in this shop',
+    emptyTitle: 'No products yet',
+    emptyBody: 'This shop hasn’t added products yet. Check back soon.',
+  },
   placeholder: {
     ordersTitle: 'My orders',
     body: 'This section is on its way. It needs a part of the marketplace that isn’t live yet.',

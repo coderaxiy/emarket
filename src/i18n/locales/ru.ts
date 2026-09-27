@@ -182,6 +182,15 @@ export const ru: Dictionary = {
     signInToCheckout: 'Войдите, чтобы оформить заказ',
     guestNote: 'Корзина сохранится, когда вы войдёте или зарегистрируетесь.',
   },
+  shop: {
+    products: 'Товары',
+    ratingCount: 'Оценок: {count}',
+    since: 'На emarket с {date}',
+    searchLabel: 'Поиск в магазине {shop}',
+    searchPlaceholder: 'Искать в этом магазине',
+    emptyTitle: 'Товаров пока нет',
+    emptyBody: 'Магазин ещё не добавил товары. Загляните позже.',
+  },
   placeholder: {
     ordersTitle: 'Мои заказы',
     body: 'Этот раздел в работе. Он зависит от части маркетплейса, которая ещё не запущена.',

@@ -11,6 +11,7 @@ import type {
   CategoryNodeRead,
   ProductCardRead,
   ProductPublicRead,
+  ShopPublicRead,
 } from './types';
 
 const TIMEOUT_MS = 5_000;
@@ -65,6 +66,12 @@ export async function fetchFacets(filters: CatalogFilters): Promise<CatalogFacet
 /** A product by its readable URL. Old (renamed) product slugs still resolve; compare slugs to redirect. */
 export async function fetchProductBySlug(shopSlug: string, productSlug: string): Promise<ProductPublicRead> {
   const { data } = await getJson<ProductPublicRead>(CATALOG_ENDPOINTS.productBySlug(shopSlug, productSlug));
+  return data;
+}
+
+/** A shop's public profile; 404 unless the shop is active. Shop slugs never change. */
+export async function fetchShopBySlug(shopSlug: string): Promise<ShopPublicRead> {
+  const { data } = await getJson<ShopPublicRead>(CATALOG_ENDPOINTS.shopBySlug(shopSlug));
   return data;
 }
 
