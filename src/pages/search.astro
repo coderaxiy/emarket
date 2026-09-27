@@ -1,15 +1,45 @@
 ---
-import ComingSoon from '@/components/ComingSoon.astro';
+import { SearchIcon } from 'lucide-react';
+import CatalogResults from '@/components/CatalogResults.astro';
+import { EmptyState } from '@/components/ui/state';
 import { createT, getLocale } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
+import { CatalogRequestError, fetchProducts, type ProductPage } from '@/lib/api/catalogServer';
+import { filtersFromUrl } from '@/lib/catalog';
 
+// Search results. The header's search pill submits here (`?q=`); no query, no request.
 const t = createT(getLocale(Astro.cookies));
-const query = Astro.url.searchParams.get('q')?.trim() ?? '';
+const filters = filtersFromUrl(Astro.url.searchParams);
+
+let result: ProductPage | CatalogRequestError | undefined;
+if (filters.q) {
+  try {
+    result = await fetchProducts(filters);
+  } catch (error) {
+    result = error instanceof CatalogRequestError ? error : new CatalogRequestError(0);
+  }
+}
 ---
 
-<Layout title={t('placeholder.searchTitle')} noindex={query !== ''}>
-  <ComingSoon
-    title={t('placeholder.searchTitle')}
-    subtitle={query ? t('placeholder.searchResultsFor', { query }) : undefined}
-  />
+<Layout title={filters.q ? t('catalog.searchResultsFor', { query: filters.q }) : t('nav.search')} noindex={filters.q !== ''}>
+  {
+    result ? (
+      <CatalogResults
+        title={t('nav.search')}
+        subtitle={t('catalog.searchResultsFor', { query: filters.q })}
+        filters={filters}
+        basePath="/search"
+        result={result}
+        emptyTitle={t('catalog.noResultsTitle')}
+        emptyBody={t('catalog.noResultsBody')}
+      />
+    ) : (
+      <section class="mx-auto max-w-7xl px-4 py-8">
+        <h1 class="sr-only">{t('nav.search')}</h1>
+        <EmptyState title={t('catalog.searchPromptTitle')} description={t('catalog.searchPromptBody')}>
+          <SearchIcon slot="icon" aria-hidden="true" />
+        </EmptyState>
+      </section>
+    )
+  }
 </Layout>
