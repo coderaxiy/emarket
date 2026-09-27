@@ -102,12 +102,29 @@ export interface OrderLineRead {
   created_at: string;
 }
 
+/** Fulfillment state of one shop's part of an order. docs/orders-and-payments-api.md §1. */
+export type OrderShopGroupStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'at_warehouse'
+  | 'shipped'
+  | 'arrived_at_point'
+  | 'partially_collected'
+  | 'delivered'
+  | 'cancelled'
+  | 'return_requested'
+  | 'partially_refunded'
+  | 'refunded'
+  | 'rejected_by_buyer'
+  | 'return_to_seller';
+
 export interface OrderShopGroupRead {
   id: number;
   order_id: number;
   shop_id: number;
   /** New values may appear; render unknown ones gracefully. */
-  status: string;
+  status: OrderShopGroupStatus | (string & {});
   subtotal: Money;
   shipping_fee: Money;
   cancellation_reason: string | null;
@@ -133,4 +150,22 @@ export interface OrderRead {
   groups: OrderShopGroupRead[];
   created_at: string;
   updated_at: string;
+}
+
+export type PickupHoldingStatus = 'holding' | 'partially_collected' | 'collected' | 'expired_uncollected';
+export type PickupHoldingItemStatus = 'holding' | 'collected' | 'rejected_by_buyer' | 'expired_uncollected';
+
+/** `GET /orders/{id}/groups/{group_id}/pickup-status`; `404` until the group reaches the point. */
+export interface PickupStatusRead {
+  order_shop_group_id: number;
+  pickup_point_id: number;
+  holding_status: PickupHoldingStatus;
+  arrived_at: string;
+  /** Collect by this time, or the items go back to the shop. */
+  collection_deadline: string;
+  items: { order_line_id: number; quantity: number; quantity_collected: number; status: PickupHoldingItemStatus }[];
+}
+
+export interface CancelGroupRequest {
+  reason: string;
 }

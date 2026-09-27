@@ -1,11 +1,170 @@
 ---
-import ComingSoon from '@/components/ComingSoon.astro';
-import { createT, getLocale } from '@/i18n';
+import { ChevronRightIcon, MapPinIcon, PackageIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState, ErrorState } from '@/components/ui/state';
+import { createT, getLocale, INTL_LOCALES, type TranslationKey } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
+import { fetchOrders } from '@/lib/api/ordersServer';
+import { loginUrl } from '@/lib/auth';
+import { formatDate, formatMoney } from '@/lib/format';
+import { groupStatus, isAtPickupPoint, ORDER_STATUS, ORDER_TABS, orderItemCount, orderTab, type OrderTab } from '@/lib/orders';
 
-const t = createT(getLocale(Astro.cookies));
+// The buyer's orders, newest first, with tabs by state. Server-rendered with the buyer's
+// cookie; tabs are links (`?tab=`), so they work without JS and are shareable.
+// Login required (PROTECTED_PATHS).
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+const intlLocale = INTL_LOCALES[locale];
+
+const result = await fetchOrders(Astro.request.headers.get('cookie'));
+if (result.status === 'unauthorized') return Astro.redirect(loginUrl(`${Astro.url.pathname}${Astro.url.search}`));
+
+const requested = Astro.url.searchParams.get('tab');
+const tab: OrderTab = ORDER_TABS.includes(requested as OrderTab) ? (requested as OrderTab) : 'all';
+const orders = result.status === 'ok' ? result.orders : [];
+const count = (key: OrderTab) => (key === 'all' ? orders.length : orders.filter((order) => orderTab(order.status) === key).length);
+const shown = tab === 'all' ? orders : orders.filter((order) => orderTab(order.status) === tab);
+
+const TAB_LABEL: Record<OrderTab, TranslationKey> = {
+  all: 'orders.tabAll',
+  active: 'orders.tabActive',
+  completed: 'orders.tabCompleted',
+  cancelled: 'orders.tabCancelled',
+};
+const PREVIEW_LINES = 3;
 ---
 
-<Layout title={t('placeholder.ordersTitle')} noindex>
-  <ComingSoon title={t('placeholder.ordersTitle')} />
+<Layout title={t('header.myOrders')} noindex>
+  <section class="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6 sm:py-8">
+    <h1 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{t('header.myOrders')}</h1>
+
+    {
+      result.status === 'failed' ? (
+        <ErrorState title={t('state.loadFailed')}>
+          <a
+            slot="action"
+            href={`${Astro.url.pathname}${Astro.url.search}`}
+            class="inline-flex h-10 items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {t('common.retry')}
+          </a>
+        </ErrorState>
+      ) : orders.length === 0 ? (
+        <EmptyState title={t('orders.emptyTitle')} description={t('orders.emptyBody')}>
+          <a
+            slot="action"
+            href="/catalog"
+            class="inline-flex h-10 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {t('home.heroCta')}
+          </a>
+        </EmptyState>
+      ) : (
+        <>
+          <nav aria-label={t('orders.filter')} class="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <ul class="flex w-max gap-2">
+              {ORDER_TABS.map((key) => (
+                <li>
+                  <a
+                    href={key === 'all' ? '/orders' : `/orders?tab=${key}`}
+                    aria-current={key === tab ? 'page' : undefined}
+                    class:list={[
+                      'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                      key === tab ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent/15 hover:text-accent',
+                    ]}
+                  >
+                    {t(TAB_LABEL[key])}
+                    <span class="tabular-nums opacity-75">{count(key)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {shown.length === 0 ? (
+            <EmptyState title={t('orders.tabEmpty')} />
+          ) : (
+            <ul class="flex flex-col gap-4">
+              {shown.map((order) => {
+                const status = ORDER_STATUS[order.status];
+                const lines = order.groups.flatMap((group) => group.lines);
+                const readyGroups = order.groups.filter(isAtPickupPoint).length;
+                return (
+                  <li>
+                    <article class="relative flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-accent sm:p-5">
+                      <header class="flex flex-wrap items-start justify-between gap-2">
+                        <div class="flex flex-col gap-0.5">
+                          <h2 class="text-lg font-semibold tabular-nums">
+                            <a
+                              href={`/orders/${order.id}`}
+                              class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none after:focus-visible:ring-2 after:focus-visible:ring-ring"
+                            >
+                              {order.order_number}
+                            </a>
+                          </h2>
+                          {order.placed_at && (
+                            <p class="text-sm text-muted-foreground">{formatDate(order.placed_at, intlLocale, { dateStyle: 'long' })}</p>
+                          )}
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                          {readyGroups > 0 && <Badge variant="success">{t('order.groupReady')}</Badge>}
+                          <Badge variant={status?.tone ?? 'neutral'}>{status ? t(status.label) : order.status}</Badge>
+                        </div>
+                      </header>
+
+                      {order.groups.length > 1 && (
+                        <ul class="flex flex-wrap gap-2 text-xs">
+                          {order.groups.map((group, index) => {
+                            const groupState = groupStatus(group.status);
+                            return (
+                              <li class="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1">
+                                <PackageIcon className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                                {t('order.shipmentOf', { index: index + 1, total: order.groups.length })}:{' '}
+                                <span class="font-medium">{t(groupState.label)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {order.groups.length === 1 && order.groups[0] && (
+                        <p class="text-sm">
+                          <span class="font-medium">{t(groupStatus(order.groups[0].status).label)}</span>
+                        </p>
+                      )}
+
+                      <ul class="flex flex-col gap-1 text-sm text-muted-foreground">
+                        {lines.slice(0, PREVIEW_LINES).map((line) => (
+                          <li class="truncate">
+                            {line.product_title_snapshot}
+                            {line.quantity > 1 && <span class="tabular-nums"> × {line.quantity}</span>}
+                          </li>
+                        ))}
+                        {lines.length > PREVIEW_LINES && <li>{t('orders.moreItems', { count: lines.length - PREVIEW_LINES })}</li>}
+                      </ul>
+
+                      <footer class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3">
+                        <div class="flex min-w-0 flex-col gap-0.5 text-sm">
+                          {order.pickup_point && (
+                            <span class="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                              <MapPinIcon className="size-4 shrink-0" aria-hidden="true" />
+                              <span class="truncate">{order.pickup_point.name}</span>
+                            </span>
+                          )}
+                          <span class="text-muted-foreground tabular-nums">{t('cart.itemCount', { count: orderItemCount(order) })}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-lg font-semibold tabular-nums">{formatMoney(order.total_amount, intlLocale)}</span>
+                          <ChevronRightIcon className="size-5 text-muted-foreground" aria-hidden="true" />
+                        </div>
+                      </footer>
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )
+    }
+  </section>
 </Layout>

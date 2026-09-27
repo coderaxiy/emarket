@@ -47,4 +47,8 @@ export const ORDER_ENDPOINTS = {
   checkout: '/checkout',
   orders: '/orders',
   order: (orderId: number) => `/orders/${orderId}`,
+  /** `{ reason }`; only while the group is `pending` or `confirmed`. */
+  cancelGroup: (orderId: number, groupId: number) => `/orders/${orderId}/groups/${groupId}/cancel`,
+  /** `404` until the group reaches the pickup point: that means "still on the way". */
+  pickupStatus: (orderId: number, groupId: number) => `/orders/${orderId}/groups/${groupId}/pickup-status`,
 } as const;
