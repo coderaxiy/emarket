@@ -9,6 +9,7 @@ import type { Locale, TranslationKey } from '@/i18n';
 import { useTranslation } from '@/i18n/react';
 import type { BrandFacetRead, CatalogSort, Money } from '@/lib/api/types';
 import { filtersToUrl, type CatalogFilters } from '@/lib/catalog';
+import { formatNumber } from '@/lib/format';
 import { AppProviders } from './AppProviders';
 
 // Catalog filters and sort. Two islands share one panel: `CatalogSidebar` (desktop,
@@ -113,8 +114,7 @@ function PriceFields({ value, data, onChange }: { value: FilterValue; data: Filt
   const id = useId();
   const [min, setMin] = useState(value.priceMin ?? '');
   const [max, setMax] = useState(value.priceMax ?? '');
-  const number = new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 });
-  const hint = (amount: Money | null) => (amount ? number.format(Math.floor(Number.parseFloat(amount))) : undefined);
+  const hint = (amount: Money | null) => (amount ? formatNumber(Math.floor(Number.parseFloat(amount)), intlLocale) : undefined);
   const digits = (input: string) => input.replace(/\D/g, '').slice(0, 12);
 
   function onSubmit(event: SubmitEvent<HTMLFormElement>) {

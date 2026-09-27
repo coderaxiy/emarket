@@ -32,6 +32,10 @@ repo and what we learned building it.
   per request.
 - `PageProgress.astro` animates `transform` only. No Tailwind `scale-x-*`.
 - Theme: `getTheme(Astro.cookies)` in `src/lib/preferences.ts` → `<html data-theme>`.
+- No `Intl.NumberFormat` for anything a React island renders: browsers without Uzbek locale
+  data print `UZS 15,000` where the server printed `15 000 soʻm`, and hydration fails. Use
+  `formatMoney` / `formatNumber` from `src/lib/format.ts` (hand-made, same output everywhere).
+  Server-only `.astro` code may still use Intl.
 
 ## Layout of the code
 - `src/lib/api/` — `client.ts` (the one axios instance), `endpoints.ts` (every path),

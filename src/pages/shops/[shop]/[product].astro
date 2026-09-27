@@ -1,12 +1,13 @@
 ---
 import { ChevronRightIcon } from 'lucide-react';
-import { ProductView, type ProductViewData, type VariantAxis } from '@/components/react/ProductView';
+import ProductCard from '@/components/ProductCard.astro';
+import { ProductView, type ProductViewData, type SpecRow, type VariantAxis } from '@/components/react/ProductView';
 import { ErrorState } from '@/components/ui/state';
 import { createT, getLocale, INTL_LOCALES, pickTranslation } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
-import { CatalogRequestError, fetchCategoryAttributes, fetchProductBySlug } from '@/lib/api/catalogServer';
-import type { CategoryAttributePublicRead, ProductPublicAttributeRead, ProductPublicRead } from '@/lib/api/types';
-import { categoryName } from '@/lib/catalog';
+import { CatalogRequestError, fetchCategoryAttributes, fetchProductBySlug, fetchProducts } from '@/lib/api/catalogServer';
+import type { CategoryAttributePublicRead, ProductCardRead, ProductPublicAttributeRead, ProductPublicRead } from '@/lib/api/types';
+import { categoryName, filtersFromUrl } from '@/lib/catalog';
 
 // Product page at its readable URL. Product slugs are unique per shop; renamed products
 // keep resolving by their old slug, and we 301 to the current one.
@@ -29,15 +30,24 @@ if (product && (product.slug !== productSlug || product.shop.slug !== shopSlug))
   return Astro.redirect(canonical, 301);
 }
 
-// Labels and order for the variant picker. Without them we fall back to raw keys.
-let categoryAttributes: CategoryAttributePublicRead[] = [];
-if (product?.has_variants) {
-  try {
-    categoryAttributes = await fetchCategoryAttributes(product.category.id);
-  } catch {
-    categoryAttributes = [];
-  }
+// In parallel: labels and order for the variant picker (raw keys without them), and the
+// two rows below the product. Any of them failing just leaves that part out.
+const RAIL_SIZE = 12;
+const noFilters = filtersFromUrl(new URLSearchParams());
+const [attributesResult, similarResult, shopResult] = product
+  ? await Promise.allSettled([
+      product.has_variants ? fetchCategoryAttributes(product.category.id) : Promise.resolve([]),
+      fetchProducts({ ...noFilters, categoryId: product.category.id }),
+      fetchProducts({ ...noFilters, shopId: product.shop.id }),
+    ])
+  : [];
+const categoryAttributes: CategoryAttributePublicRead[] = attributesResult?.status === 'fulfilled' ? attributesResult.value : [];
+function rail(result: PromiseSettledResult<{ items: ProductCardRead[] }> | undefined, exclude: number[]): ProductCardRead[] {
+  if (result?.status !== 'fulfilled') return [];
+  return result.value.items.filter((item) => !exclude.includes(item.id)).slice(0, RAIL_SIZE);
 }
+const similar = product ? rail(similarResult, [product.id]) : [];
+const fromShop = product ? rail(shopResult, [product.id, ...similar.map((item) => item.id)]) : [];
 
 function buildAxes(source: ProductPublicRead): VariantAxis[] {
   const keys = [...new Set(source.variants.flatMap((variant) => Object.keys(variant.attributes)))];
@@ -71,7 +81,15 @@ function formatValue(attribute: ProductPublicAttributeRead): string {
 }
 
 const axes = product?.has_variants ? buildAxes(product) : [];
-const specs = product ? product.attributes.filter((attribute) => !attribute.is_variant_defining) : [];
+const specs: SpecRow[] = product
+  ? product.attributes
+      .filter((attribute) => !attribute.is_variant_defining)
+      .map((attribute) => ({
+        label: pickTranslation(attribute.label_translations, locale)?.label ?? attribute.key,
+        value: formatValue(attribute),
+      }))
+  : [];
+const KEY_SPECS = 5;
 const viewData: ProductViewData | undefined = product && {
   id: product.id,
   title: product.title,
@@ -87,12 +105,15 @@ const viewData: ProductViewData | undefined = product && {
 const crumbs = product ? [...product.category.ancestors, product.category] : [];
 const metaDescription = product?.description?.replace(/\s+/g, ' ').trim().slice(0, 160) || undefined;
 const retryHref = `${Astro.url.pathname}${Astro.url.search}`;
+const pillClass =
+  'inline-flex h-9 items-center rounded-full bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent/15 hover:text-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 ---
 
 <Layout title={product?.title ?? t('nav.catalog')} description={metaDescription} ogImage={product?.images[0]?.url}>
   {
     product && viewData ? (
-      <article class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 sm:py-8">
+      <article class="mx-auto flex max-w-7xl flex-col gap-6 px-4 pt-6 pb-24 sm:pt-8 lg:pb-8">
+        {/* pb-24: room for the sticky price bar below lg. */}
         <nav aria-label={t('catalog.breadcrumbs')}>
           <ol class="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
             <li>
@@ -111,32 +132,75 @@ const retryHref = `${Astro.url.pathname}${Astro.url.search}`;
           </ol>
         </nav>
 
-        <ProductView client:load locale={locale} product={viewData} axes={axes} />
+        <ProductView
+          client:load
+          locale={locale}
+          product={viewData}
+          axes={axes}
+          keySpecs={specs.slice(0, KEY_SPECS)}
+          moreSpecs={specs.length > KEY_SPECS}
+        />
 
         {(product.description || specs.length > 0) && (
-          <div class="grid gap-8 border-t border-border pt-8 lg:grid-cols-2 lg:gap-12">
-            {product.description && (
-              <section class="flex flex-col gap-3">
-                <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.description')}</h2>
-                <p class="text-pretty whitespace-pre-line text-foreground/90">{product.description}</p>
-              </section>
-            )}
-            {specs.length > 0 && (
-              <section class="flex flex-col gap-3">
-                <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.specs')}</h2>
-                <dl class="divide-y divide-border rounded-lg border border-border bg-card">
-                  {specs.map((attribute) => (
-                    <div class="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm">
-                      <dt class="text-muted-foreground">
-                        {pickTranslation(attribute.label_translations, locale)?.label ?? attribute.key}
-                      </dt>
-                      <dd class="font-medium tabular-nums">{formatValue(attribute)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            )}
+          <div class="flex flex-col gap-6 border-t border-border pt-6">
+            <nav aria-label={t('product.aboutProduct')} class="flex flex-wrap gap-2">
+              {product.description && (
+                <a href="#description" class={pillClass}>
+                  {t('product.description')}
+                </a>
+              )}
+              {specs.length > 0 && (
+                <a href="#specs" class={pillClass}>
+                  {t('product.specs')}
+                </a>
+              )}
+            </nav>
+            <div class="grid gap-10 lg:grid-cols-2 lg:gap-12">
+              {product.description && (
+                <section id="description" class="flex scroll-mt-24 flex-col gap-3">
+                  <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.description')}</h2>
+                  <p class="max-w-prose text-pretty whitespace-pre-line text-foreground/90">{product.description}</p>
+                </section>
+              )}
+              {specs.length > 0 && (
+                <section id="specs" class="flex scroll-mt-24 flex-col gap-3">
+                  <h2 class="font-display text-xl font-semibold tracking-tight">{t('product.specs')}</h2>
+                  <dl class="divide-y divide-border rounded-lg border border-border bg-card">
+                    {specs.map((spec) => (
+                      <div class="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm">
+                        <dt class="text-muted-foreground">{spec.label}</dt>
+                        <dd class="font-medium tabular-nums">{spec.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              )}
+            </div>
           </div>
+        )}
+
+        {[
+          { title: t('product.similar'), items: similar, href: `/catalog/${encodeURIComponent(product.category.slug)}` },
+          { title: t('product.moreFromShop', { shop: product.shop.name }), items: fromShop, href: `/shops/${encodeURIComponent(product.shop.slug)}` },
+        ].map(
+          (row) =>
+            row.items.length > 0 && (
+              <section class="flex flex-col gap-4 border-t border-border pt-6">
+                <div class="flex items-baseline justify-between gap-4">
+                  <h2 class="font-display text-xl font-semibold tracking-tight">{row.title}</h2>
+                  <a href={row.href} class="shrink-0 text-sm font-medium text-accent hover:underline">
+                    {t('product.seeAll')}
+                  </a>
+                </div>
+                <ul class="-mx-4 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-4 pb-2 sm:auto-cols-[30%] md:auto-cols-[22%] lg:mx-0 lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible lg:px-0">
+                  {row.items.map((item) => (
+                    <li>
+                      <ProductCard product={item} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ),
         )}
       </article>
     ) : (

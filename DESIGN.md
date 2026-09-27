@@ -37,7 +37,8 @@ pin `color-scheme`. The `dark:` variant targets `[data-theme='dark']` only, so p
 - **Body/UI — Onest Variable** (`font-sans`, the default).
 - Both self-hosted via `@fontsource-variable/*`, both cover Latin + Cyrillic.
 - Not Inter/Geist (generic) and not Manrope (the siblings' face).
-- Prices: body font, `font-semibold tabular-nums`, formatted with `Intl.NumberFormat` in UZS.
+- Prices: body font, `font-semibold tabular-nums`, formatted with `formatMoney` from
+  `src/lib/format.ts`: `15 000 soʻm` / `15 000 сум` / `15,000 UZS`, whole soʻm.
 
 ## Pattern
 

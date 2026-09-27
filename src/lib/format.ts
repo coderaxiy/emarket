@@ -1,26 +1,39 @@
 // Money is a string ("125000.00"). Never do float math on it: sum in integer tiyin.
 
-const moneyFormatters = new Map<string, Intl.NumberFormat>();
+// Money and whole numbers are formatted by hand, not with Intl: some browsers ship
+// without Uzbek (or other) locale data and would print "UZS 15,000" where the server
+// printed "15 000 soʻm", breaking hydration. Hand-made output is identical everywhere.
 
-function moneyFormatter(intlLocale: string): Intl.NumberFormat {
-  let formatter = moneyFormatters.get(intlLocale);
-  if (!formatter) {
-    formatter = new Intl.NumberFormat(intlLocale, {
-      style: 'currency',
-      currency: 'UZS',
-      maximumFractionDigits: 0,
-    });
-    moneyFormatters.set(intlLocale, formatter);
-  }
-  return formatter;
+const NBSP = '\u00A0';
+
+/** `uz-Latn-UZ` → `uz`. Unknown locales format like `en`. */
+function language(intlLocale: string): string {
+  return intlLocale.slice(0, 2);
 }
+
+/** Whole number with locale grouping: `1 250 000` (uz, ru) or `1,250,000` (en). */
+export function formatNumber(value: number, intlLocale: string): string {
+  const rounded = Math.round(value);
+  const digits = Math.abs(rounded).toString();
+  const separator = language(intlLocale) === 'en' ? ',' : NBSP;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+  return rounded < 0 ? `-${grouped}` : grouped;
+}
+
+const CURRENCY: Record<string, (amount: string) => string> = {
+  uz: (amount) => `${amount}${NBSP}soʻm`,
+  ru: (amount) => `${amount}${NBSP}сум`,
+  en: (amount) => `${amount}${NBSP}UZS`,
+};
 
 export function toTiyin(amount: string): number {
   return Math.round(Number.parseFloat(amount) * 100);
 }
 
+/** Whole soʻm, e.g. `1 250 000 soʻm`. Tiyin are never shown (prices are whole soʻm in practice). */
 export function formatTiyin(tiyin: number, intlLocale: string): string {
-  return moneyFormatter(intlLocale).format(tiyin / 100);
+  const withCurrency = CURRENCY[language(intlLocale)] ?? CURRENCY.en!;
+  return withCurrency(formatNumber(tiyin / 100, intlLocale));
 }
 
 export function formatMoney(amount: string, intlLocale: string): string {
