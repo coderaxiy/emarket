@@ -95,6 +95,14 @@ export const uz: Dictionary = {
     howItWorks: 'Bu qanday ishlaydi',
     rights: '© {year} emarket',
   },
+  catalog: {
+    priceFrom: '{price}dan',
+    outOfStock: 'Sotuvda yoʻq',
+    pagination: 'Sahifalar',
+    previous: 'Oldingi',
+    next: 'Keyingi',
+    pageLabel: '{page}-sahifa',
+  },
   placeholder: {
     catalogTitle: 'Katalog',
     searchTitle: 'Qidiruv',

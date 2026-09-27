@@ -1,0 +1,64 @@
+---
+import { ImageIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { createT, getLocale, INTL_LOCALES } from '@/i18n';
+import type { ProductCardRead } from '@/lib/api/types';
+import { formatMoney } from '@/lib/format';
+
+// Static product tile for catalog, search and shop grids. Links to the readable product
+// URL (`/shops/{shop}/{product}`). Only real data: price, stock, brand, shop.
+interface Props {
+  product: ProductCardRead;
+  /** The first row of a grid loads eagerly; the rest lazily. */
+  eager?: boolean;
+}
+
+const { product, eager = false } = Astro.props;
+const locale = getLocale(Astro.cookies);
+const t = createT(locale);
+const intlLocale = INTL_LOCALES[locale];
+
+const href = `/shops/${encodeURIComponent(product.shop.slug)}/${encodeURIComponent(product.slug)}`;
+const price = formatMoney(product.price_min, intlLocale);
+const hasRange = product.price_min !== product.price_max;
+---
+
+<article class="group relative flex flex-col gap-2">
+  <div class="relative aspect-square overflow-hidden rounded-lg bg-muted">
+    {
+      product.image_url ? (
+        <img
+          src={product.image_url}
+          alt=""
+          loading={eager ? 'eager' : 'lazy'}
+          decoding="async"
+          class:list={[
+            'size-full object-cover transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transition-none',
+            !product.in_stock && 'opacity-60',
+          ]}
+        />
+      ) : (
+        <div class="flex size-full items-center justify-center text-muted-foreground">
+          <ImageIcon className="size-8" aria-hidden="true" />
+        </div>
+      )
+    }
+    {!product.in_stock && <Badge className="absolute bottom-2 left-2 bg-card text-foreground shadow-sm">{t('catalog.outOfStock')}</Badge>}
+  </div>
+
+  <div class="flex flex-col gap-1 px-0.5">
+    <p class="text-base font-semibold tabular-nums sm:text-lg">
+      {hasRange ? t('catalog.priceFrom', { price }) : price}
+    </p>
+    <h3 class="line-clamp-2 text-sm leading-snug">
+      <a
+        href={href}
+        class="after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none after:focus-visible:ring-2 after:focus-visible:ring-ring"
+      >
+        {product.brand && <span class="font-medium">{product.brand.name} </span>}
+        {product.title}
+      </a>
+    </h3>
+    <p class="truncate text-xs text-muted-foreground">{product.shop.name}</p>
+  </div>
+</article>

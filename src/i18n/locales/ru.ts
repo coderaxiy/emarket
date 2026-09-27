@@ -95,6 +95,14 @@ export const ru: Dictionary = {
     howItWorks: 'Как это работает',
     rights: '© {year} emarket',
   },
+  catalog: {
+    priceFrom: 'от {price}',
+    outOfStock: 'Нет в наличии',
+    pagination: 'Страницы',
+    previous: 'Назад',
+    next: 'Вперёд',
+    pageLabel: 'Страница {page}',
+  },
   placeholder: {
     catalogTitle: 'Каталог',
     searchTitle: 'Поиск',

@@ -95,6 +95,14 @@ export const en = {
     howItWorks: 'How it works',
     rights: '© {year} emarket',
   },
+  catalog: {
+    priceFrom: 'from {price}',
+    outOfStock: 'Out of stock',
+    pagination: 'Pages',
+    previous: 'Previous',
+    next: 'Next',
+    pageLabel: 'Page {page}',
+  },
   placeholder: {
     catalogTitle: 'Catalog',
     searchTitle: 'Search',
