@@ -56,7 +56,9 @@ repo and what we learned building it.
 - The header is `transition:persist="site-header"`: it keeps state across navigations and gets
   new props. Reset per-page state by keying a child on the prop (`<SearchBar key={query} />`).
 - Pass islands the minimum user slice (`toSessionUser`) — props are serialized into the HTML.
-- `toast()` from `ui/toast` works from any island; the single `<Toaster />` lives in the header.
+- `toast()` from `ui/toast` works from any island; the single `<Toaster />` is the
+  `ToastRegion` island at the end of `<body>`. Never put `position: fixed` UI inside the header:
+  its `backdrop-filter` makes it the containing block, so "fixed" pins to the header, not the screen.
 - Login, logout and locale change are hard navigations (`window.location`), theme is not.
 
 ## Styling

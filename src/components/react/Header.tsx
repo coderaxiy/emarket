@@ -1,6 +1,5 @@
 import { ShoppingBagIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/toast';
 import { WithTooltip } from '@/components/ui/tooltip';
 import type { Locale } from '@/i18n';
 import { useTranslation } from '@/i18n/react';
@@ -72,7 +71,6 @@ function HeaderContent({ theme, user, currentPath, query, hasCart }: Omit<Header
           </div>
         </div>
       </div>
-      <Toaster closeLabel={t('common.close')} />
     </header>
   );
 }
