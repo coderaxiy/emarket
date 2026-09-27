@@ -8,6 +8,24 @@ export type {
   CartVariantRead,
 } from './cart';
 export type {
+  CheckoutRequest,
+  CheckoutResponse,
+  NearbyPickupPointRead,
+  OrderLineRead,
+  OrderPickupPointRead,
+  OrderRead,
+  OrderShopGroupRead,
+  OrderStatus,
+  PaymentMethod,
+  PickupPointAddress,
+  PickupPointRead,
+  PickupPointStatus,
+  PickupPointType,
+  PriceChangedDetail,
+  Recipient,
+  RegionRead,
+} from './checkout';
+export type {
   AttributeDataType,
   AttributeTranslationRead,
   BrandFacetRead,

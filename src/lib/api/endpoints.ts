@@ -30,3 +30,21 @@ export const CART_ENDPOINTS = {
   items: '/cart/items',
   item: (cartItemId: number) => `/cart/items/${cartItemId}`,
 } as const;
+
+/** Login required, except `nearby`. docs/logistics-and-pickup-points-api.md §3.4 */
+export const PICKUP_ENDPOINTS = {
+  regions: '/regions',
+  /** `?region_id=`; active points only. */
+  pickupPoints: '/pickup-points',
+  /** `PickupPointRead | null`: the point on the buyer's previous order, if still active. */
+  lastUsed: '/pickup-points/last-used',
+  /** Public. `?lat=&lng=&radius_km=` */
+  nearby: '/pickup-points/nearby',
+} as const;
+
+/** docs/orders-and-payments-api.md §2, §3.1 */
+export const ORDER_ENDPOINTS = {
+  checkout: '/checkout',
+  orders: '/orders',
+  order: (orderId: number) => `/orders/${orderId}`,
+} as const;
