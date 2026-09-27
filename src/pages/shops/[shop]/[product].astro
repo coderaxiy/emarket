@@ -1,6 +1,6 @@
 ---
 import { ChevronRightIcon } from 'lucide-react';
-import ProductCard from '@/components/ProductCard.astro';
+import ProductRail from '@/components/ProductRail.astro';
 import { ProductView, type ProductViewData, type SpecRow, type VariantAxis } from '@/components/react/ProductView';
 import { ErrorState } from '@/components/ui/state';
 import { createT, getLocale, INTL_LOCALES, pickTranslation } from '@/i18n';
@@ -179,29 +179,18 @@ const pillClass =
           </div>
         )}
 
-        {[
-          { title: t('product.similar'), items: similar, href: `/catalog/${encodeURIComponent(product.category.slug)}` },
-          { title: t('product.moreFromShop', { shop: product.shop.name }), items: fromShop, href: `/shops/${encodeURIComponent(product.shop.slug)}` },
-        ].map(
-          (row) =>
-            row.items.length > 0 && (
-              <section class="flex flex-col gap-4 border-t border-border pt-6">
-                <div class="flex items-baseline justify-between gap-4">
-                  <h2 class="font-display text-xl font-semibold tracking-tight">{row.title}</h2>
-                  <a href={row.href} class="shrink-0 text-sm font-medium text-accent hover:underline">
-                    {t('product.seeAll')}
-                  </a>
-                </div>
-                <ul class="-mx-4 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-4 pb-2 sm:auto-cols-[30%] md:auto-cols-[22%] lg:mx-0 lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible lg:px-0">
-                  {row.items.map((item) => (
-                    <li>
-                      <ProductCard product={item} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ),
-        )}
+        <ProductRail
+          title={t('product.similar')}
+          href={`/catalog/${encodeURIComponent(product.category.slug)}`}
+          items={similar}
+          divided
+        />
+        <ProductRail
+          title={t('product.moreFromShop', { shop: product.shop.name })}
+          href={`/shops/${encodeURIComponent(product.shop.slug)}`}
+          items={fromShop}
+          divided
+        />
       </article>
     ) : (
       failed && (

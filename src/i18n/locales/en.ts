@@ -81,6 +81,8 @@ export const en = {
     heroBody:
       'Shop from many independent sellers in one cart. Pick a pickup point near you, inspect your items there and pay on the spot.',
     heroCta: 'Browse the catalog',
+    categoriesTitle: 'Categories',
+    newArrivals: 'New arrivals',
     stepsTitle: 'How it works',
     step1Title: 'Choose',
     step1Body: 'Add products from different shops to a single cart.',

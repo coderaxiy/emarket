@@ -1,0 +1,45 @@
+---
+import ProductCard from '@/components/ProductCard.astro';
+import { createT, getLocale } from '@/i18n';
+import type { ProductCardRead } from '@/lib/api/types';
+
+// A titled row of product cards with a "See all" link: scrolls sideways on small screens,
+// a 6-column grid from lg. Renders nothing without items.
+interface Props {
+  title: string;
+  href: string;
+  items: ProductCardRead[];
+  /** Grid rows from lg; extra items stay reachable in the small-screen scroller. */
+  desktopRows?: 1 | 2;
+  /** Draw a top border (between sections on a page). */
+  divided?: boolean;
+}
+
+const { title, href, items, desktopRows = 2, divided = false } = Astro.props;
+const t = createT(getLocale(Astro.cookies));
+---
+
+{
+  items.length > 0 && (
+    <section class:list={['flex flex-col gap-4', divided && 'border-t border-border pt-6']}>
+      <div class="flex items-baseline justify-between gap-4">
+        <h2 class="font-display text-xl font-semibold tracking-tight">{title}</h2>
+        <a href={href} class="shrink-0 text-sm font-medium text-accent hover:underline">
+          {t('product.seeAll')}
+        </a>
+      </div>
+      <ul
+        class:list={[
+          '-mx-4 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-4 pb-2 sm:auto-cols-[30%] md:auto-cols-[22%] lg:mx-0 lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible lg:px-0',
+          desktopRows === 1 && 'lg:[&>li:nth-child(n+7)]:hidden',
+        ]}
+      >
+        {items.map((item) => (
+          <li>
+            <ProductCard product={item} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

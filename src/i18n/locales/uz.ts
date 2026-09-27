@@ -81,6 +81,8 @@ export const uz: Dictionary = {
     heroBody:
       'Koʻplab mustaqil sotuvchilardan bitta savatda xarid qiling. Yaqiningizdagi topshirish punktini tanlang, mahsulotni u yerda koʻrib chiqing va joyida toʻlang.',
     heroCta: 'Katalogni koʻrish',
+    categoriesTitle: 'Kategoriyalar',
+    newArrivals: 'Yangi kelganlar',
     stepsTitle: 'Bu qanday ishlaydi',
     step1Title: 'Tanlang',
     step1Body: 'Turli doʻkonlardagi mahsulotlarni bitta savatga qoʻshing.',

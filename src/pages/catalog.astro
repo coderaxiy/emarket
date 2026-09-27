@@ -1,10 +1,10 @@
 ---
-import { FolderIcon } from 'lucide-react';
 import CatalogResults from '@/components/CatalogResults.astro';
+import CategoryTiles from '@/components/CategoryTiles.astro';
 import { createT, getLocale } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
 import { CatalogRequestError, fetchCategoryTree, fetchProducts } from '@/lib/api/catalogServer';
-import { categoryName, filtersFromUrl, nonEmptyCategories } from '@/lib/catalog';
+import { filtersFromUrl, nonEmptyCategories } from '@/lib/catalog';
 
 // Every visible product, with the top-level categories above the grid.
 const locale = getLocale(Astro.cookies);
@@ -33,27 +33,7 @@ const result =
   >
     {
       roots.length > 0 && filters.page === 1 && (
-        <nav aria-label={t('catalog.categories')}>
-          <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {roots.map((category) => (
-              <li>
-                <a
-                  href={`/catalog/${encodeURIComponent(category.slug)}`}
-                  class="flex h-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm font-medium transition-colors hover:border-accent hover:text-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
-                    {category.icon_url ? (
-                      <img src={category.icon_url} alt="" class="size-7 object-contain" loading="lazy" />
-                    ) : (
-                      <FolderIcon className="size-5" aria-hidden="true" />
-                    )}
-                  </span>
-                  <span class="line-clamp-2">{categoryName(category, locale)}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <CategoryTiles categories={roots} label={t('catalog.categories')} />
       )
     }
   </CatalogResults>
