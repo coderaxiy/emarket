@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangleIcon, ImageIcon, MinusIcon, PlusIcon, ShoppingBagIcon, StoreIcon, Trash2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -198,98 +199,165 @@ function CartSkeleton() {
   );
 }
 
+function CheckoutAction({ signedIn, compact = false }: { signedIn: boolean; compact?: boolean }) {
+  const { t } = useTranslation();
+  if (signedIn) {
+    return (
+      <Button size={compact ? 'md' : 'lg'} className="rounded-full" disabled title={t('cart.checkoutSoon')}>
+        {t('cart.checkout')}
+      </Button>
+    );
+  }
+  return (
+    <Button asChild size={compact ? 'md' : 'lg'} className="rounded-full">
+      <a href={loginUrl('/cart')}>{t('cart.signInToCheckout')}</a>
+    </Button>
+  );
+}
+
 function Cart({ signedIn }: { signedIn: boolean }) {
   const { t, intlLocale } = useTranslation();
   const cart = useQuery({ queryKey: CART_QUERY_KEY, queryFn: fetchCart });
+  const summaryRef = useRef<HTMLElement>(null);
+  // Below lg the summary sits after the lines; a bottom bar keeps total + button in reach
+  // until the summary itself scrolls into view.
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const hasSummary = cart.data !== undefined && cart.data.items.length > 0;
 
-  if (cart.isPending) return <CartSkeleton />;
+  useEffect(() => {
+    const summary = summaryRef.current;
+    if (!summary) return;
+    const observer = new IntersectionObserver(([entry]) => setSummaryVisible(entry?.isIntersecting ?? false));
+    observer.observe(summary);
+    return () => observer.disconnect();
+  }, [hasSummary]);
+
+  const heading = (
+    <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+      {t('nav.cart')}
+      {cart.data && cart.data.item_count > 0 && (
+        <span className="ml-2 text-lg font-medium text-muted-foreground tabular-nums sm:text-xl">
+          {t('cart.itemCount', { count: cart.data.item_count })}
+        </span>
+      )}
+    </h1>
+  );
+
+  if (cart.isPending) {
+    return (
+      <>
+        {heading}
+        <CartSkeleton />
+      </>
+    );
+  }
   if (cart.isError) {
-    return <ErrorState title={t('state.loadFailed')} onRetry={() => void cart.refetch()} retryLabel={t('common.retry')} />;
+    return (
+      <>
+        {heading}
+        <ErrorState title={t('state.loadFailed')} onRetry={() => void cart.refetch()} retryLabel={t('common.retry')} />
+      </>
+    );
   }
 
   const { items, item_count: itemCount, subtotal } = cart.data;
   if (items.length === 0) {
     return (
-      <EmptyState
-        icon={<ShoppingBagIcon aria-hidden="true" />}
-        title={t('cart.emptyTitle')}
-        description={t('cart.emptyBody')}
-        action={
-          <Button asChild variant="accent" className="rounded-full">
-            <a href="/catalog">{t('home.heroCta')}</a>
-          </Button>
-        }
-      />
+      <>
+        {heading}
+        <EmptyState
+          icon={<ShoppingBagIcon aria-hidden="true" />}
+          title={t('cart.emptyTitle')}
+          description={t('cart.emptyBody')}
+          action={
+            <Button asChild variant="accent" className="rounded-full">
+              <a href="/catalog">{t('home.heroCta')}</a>
+            </Button>
+          }
+        />
+      </>
     );
   }
 
   const hasUnavailable = items.some((item) => !item.available);
   const hasShortStock = items.some((item) => item.available && !item.in_stock);
+  const total = formatMoney(subtotal, intlLocale);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-      <div className="flex flex-col gap-4">
-        {groupByShop(items).map(({ shop, items: lines }) => (
-          <section key={shop.id} className="rounded-xl border border-border bg-card px-4 pt-3">
-            <h2 className="border-b border-border pb-3">
-              <a
-                href={`/shops/${encodeURIComponent(shop.slug)}`}
-                className="inline-flex items-center gap-2 font-semibold hover:text-accent"
-              >
-                <span className="flex size-7 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
-                  {shop.logo_url ? (
-                    <img src={shop.logo_url} alt="" className="size-full object-cover" loading="lazy" />
-                  ) : (
-                    <StoreIcon className="size-4" aria-hidden="true" />
-                  )}
-                </span>
-                {shop.name}
-              </a>
-            </h2>
-            <ul className="divide-y divide-border">
-              {lines.map((item) => (
-                <CartLine key={item.id} item={item} />
-              ))}
-            </ul>
-          </section>
-        ))}
+    <>
+      {heading}
+      {/* pb-24: room for the bottom bar below lg, so it never covers the last line. */}
+      <div className="grid gap-6 pb-24 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:pb-0">
+        <div className="flex flex-col gap-4">
+          {groupByShop(items).map(({ shop, items: lines }) => (
+            <section key={shop.id} className="rounded-xl border border-border bg-card px-4 pt-3">
+              <h2 className="border-b border-border pb-3">
+                <a
+                  href={`/shops/${encodeURIComponent(shop.slug)}`}
+                  className="inline-flex items-center gap-2 font-semibold hover:text-accent"
+                >
+                  <span className="flex size-7 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground">
+                    {shop.logo_url ? (
+                      <img src={shop.logo_url} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <StoreIcon className="size-4" aria-hidden="true" />
+                    )}
+                  </span>
+                  {shop.name}
+                </a>
+              </h2>
+              <ul className="divide-y divide-border">
+                {lines.map((item) => (
+                  <CartLine key={item.id} item={item} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+
+        <aside
+          ref={summaryRef}
+          className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm lg:sticky lg:top-24"
+        >
+          <h2 className="text-lg font-semibold">{t('cart.summary')}</h2>
+          <dl className="flex flex-col gap-2 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">{t('cart.itemCount', { count: itemCount })}</dt>
+              <dd className="tabular-nums">{total}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4 border-t border-border pt-3">
+              <dt className="font-semibold">{t('cart.total')}</dt>
+              <dd className="text-2xl font-semibold text-primary tabular-nums">{total}</dd>
+            </div>
+          </dl>
+          {(hasUnavailable || hasShortStock) && (
+            <p className="flex gap-2 rounded-md bg-warning/15 px-3 py-2 text-sm">
+              <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              {hasUnavailable ? t('cart.removeUnavailable') : t('cart.fixStock')}
+            </p>
+          )}
+          <CheckoutAction signedIn={signedIn} />
+          <p className="text-center text-xs text-muted-foreground">
+            {signedIn ? t('cart.checkoutSoon') : t('cart.guestNote')}
+          </p>
+        </aside>
       </div>
 
-      <aside className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm lg:sticky lg:top-24">
-        <h2 className="text-lg font-semibold">{t('cart.summary')}</h2>
-        <dl className="flex flex-col gap-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">{t('cart.itemCount', { count: itemCount })}</dt>
-            <dd className="tabular-nums">{formatMoney(subtotal, intlLocale)}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 border-t border-border pt-3">
-            <dt className="font-semibold">{t('cart.total')}</dt>
-            <dd className="text-2xl font-semibold text-primary tabular-nums">{formatMoney(subtotal, intlLocale)}</dd>
-          </div>
-        </dl>
-        {(hasUnavailable || hasShortStock) && (
-          <p className="flex gap-2 rounded-md bg-warning/15 px-3 py-2 text-sm">
-            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-            {hasUnavailable ? t('cart.removeUnavailable') : t('cart.fixStock')}
-          </p>
+      <div
+        className={cn(
+          'fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 border-t border-border bg-popover/95 px-4 py-2.5 shadow-[0_-4px_12px_rgb(0_0_0/0.06)] backdrop-blur transition-transform duration-200 md:bottom-0 lg:hidden',
+          summaryVisible ? 'pointer-events-none translate-y-[200%]' : 'translate-y-0',
         )}
-        {signedIn ? (
-          <>
-            <Button size="lg" className="rounded-full" disabled>
-              {t('cart.checkout')}
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">{t('cart.checkoutSoon')}</p>
-          </>
-        ) : (
-          <>
-            <Button asChild size="lg" className="rounded-full">
-              <a href={loginUrl('/cart')}>{t('cart.signInToCheckout')}</a>
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">{t('cart.guestNote')}</p>
-          </>
-        )}
-      </aside>
-    </div>
+        aria-hidden={summaryVisible}
+        inert={summaryVisible}
+      >
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-xs text-muted-foreground tabular-nums">{t('cart.itemCount', { count: itemCount })}</span>
+          <span className="truncate text-lg font-semibold text-primary tabular-nums">{total}</span>
+        </div>
+        <CheckoutAction signedIn={signedIn} compact />
+      </div>
+    </>
   );
 }
 

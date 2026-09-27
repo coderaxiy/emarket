@@ -4,14 +4,13 @@ import { createT, getLocale } from '@/i18n';
 import Layout from '@/layouts/Layout.astro';
 
 // Public: guests have a cart too. The island loads it in the browser, where the
-// `access_token` / `cart_token` cookies are.
+// `access_token` / `cart_token` cookies are, and renders the heading (it shows the count).
 const locale = getLocale(Astro.cookies);
 const t = createT(locale);
 ---
 
 <Layout title={t('nav.cart')} noindex>
   <section class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 sm:py-8">
-    <h1 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{t('nav.cart')}</h1>
     <CartPage client:load locale={locale} signedIn={Astro.locals.user !== null} />
   </section>
 </Layout>
