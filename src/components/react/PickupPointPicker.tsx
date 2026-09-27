@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckIcon, ClockIcon, LocateFixedIcon, MapPinIcon, SearchIcon } from 'lucide-react';
-import { useState } from 'react';
+import { LocateFixedIcon, SearchIcon } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/react';
 import { fetchNearbyPickupPoints, fetchPickupPoints, fetchRegions } from '@/lib/api/checkout';
 import type { NearbyPickupPointRead, PickupPointRead } from '@/lib/api/types';
-import { addressLandmark, formatAddress, todaysHours } from '@/lib/pickupPoints';
-import { cn } from '@/lib/utils';
+import { formatAddress } from '@/lib/pickupPoints';
+import { hasMapsKey } from '@/lib/yandexMaps';
+import { PickupPointMapPanel } from './PickupPointMapPanel';
+import { PointOption } from './PickupPointOption';
 
 // Choose the one pickup point the whole order goes to: near the buyer's location, or
-// by region. A list, not a map: the map needs the Yandex Maps key (a later phase).
+// by region. With a Yandex Maps key on md+ screens it shows a map instead
+// (PickupPointMapPanel); the list is the fallback when the map can't load.
 
 interface PickupPointPickerProps {
   open: boolean;
@@ -24,55 +27,6 @@ interface PickupPointPickerProps {
 }
 
 type Located = { status: 'idle' } | { status: 'locating' } | { status: 'denied' } | { status: 'ok'; lat: number; lng: number };
-
-function PointOption({
-  point,
-  selected,
-  onSelect,
-}: {
-  point: PickupPointRead | NearbyPickupPointRead;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const { t, locale } = useTranslation();
-  const address = formatAddress(point.address);
-  const landmark = addressLandmark(point.address);
-  const hours = todaysHours(point.operating_hours);
-  // One decimal, locale separator; by hand like all island numbers (see src/lib/format.ts).
-  const distance =
-    'distance_km' in point ? point.distance_km.toFixed(1).replace('.', locale === 'en' ? '.' : ',') : undefined;
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={selected}
-        className={cn(
-          'flex w-full cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-          selected ? 'border-accent bg-accent/10' : 'border-border bg-card hover:border-accent',
-        )}
-      >
-        <MapPinIcon className={cn('mt-0.5 size-5 shrink-0', selected ? 'text-accent' : 'text-muted-foreground')} aria-hidden="true" />
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="font-medium">{point.name}</span>
-          {address && <span className="text-sm text-muted-foreground">{address}</span>}
-          {landmark && <span className="text-xs text-muted-foreground">{landmark}</span>}
-          {hours && (
-            <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <ClockIcon className="size-3.5" aria-hidden="true" />
-              {t('checkout.todayHours', { hours })}
-            </span>
-          )}
-        </span>
-        <span className="flex shrink-0 flex-col items-end gap-1">
-          {distance && <span className="text-xs text-muted-foreground tabular-nums">{t('checkout.distanceKm', { km: distance })}</span>}
-          {selected && <CheckIcon className="size-5 text-accent" aria-hidden="true" />}
-        </span>
-      </button>
-    </li>
-  );
-}
 
 function PointList({
   points,
@@ -218,6 +172,17 @@ function ByRegion({
   );
 }
 
+const WIDE_QUERY = '(min-width: 48rem)';
+function subscribeWide(onChange: () => void) {
+  const query = window.matchMedia(WIDE_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+/** md and up. The dialog only opens after hydration, so the server value never shows. */
+function useWideScreen(): boolean {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => false);
+}
+
 export function PickupPointPicker({ open, onOpenChange, selected, onSelect }: PickupPointPickerProps) {
   const { t } = useTranslation();
 
@@ -226,33 +191,51 @@ export function PickupPointPicker({ open, onOpenChange, selected, onSelect }: Pi
     onOpenChange(false);
   }
 
+  const wide = useWideScreen();
+  // The map can fail (no network to Yandex, blocked script): fall back to the list for good.
+  const [mapFailed, setMapFailed] = useState(false);
+  const mapMode = hasMapsKey && wide && !mapFailed;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent closeLabel={t('common.close')} className="flex max-h-[min(40rem,calc(100dvh-2rem))] max-w-xl flex-col gap-4">
-        <DialogHeader>
-          <DialogTitle>{t('checkout.choosePoint')}</DialogTitle>
-          <DialogDescription>{t('checkout.onePointNote')}</DialogDescription>
-        </DialogHeader>
-        {/* Start on "by region" when a point is already chosen: its region's list opens ready. */}
-        <Tabs defaultValue={selected ? 'region' : 'nearby'} className="flex min-h-0 flex-1 flex-col gap-3">
-          <TabsList className="w-full">
-            <TabsTrigger value="nearby" className="flex-1">
-              {t('checkout.nearMe')}
-            </TabsTrigger>
-            <TabsTrigger value="region" className="flex-1">
-              {t('checkout.byRegion')}
-            </TabsTrigger>
-          </TabsList>
-          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-            <TabsContent value="nearby">
-              <NearMe selectedId={selected?.id} onSelect={choose} />
-            </TabsContent>
-            <TabsContent value="region">
-              <ByRegion initialRegionId={selected?.region_id} selectedId={selected?.id} onSelect={choose} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </DialogContent>
+      {mapMode ? (
+        <DialogContent
+          closeLabel={t('common.close')}
+          className="flex h-[min(44rem,calc(100dvh-2rem))] max-w-5xl flex-col gap-4"
+        >
+          <DialogHeader>
+            <DialogTitle>{t('checkout.choosePoint')}</DialogTitle>
+            <DialogDescription>{t('checkout.onePointNote')}</DialogDescription>
+          </DialogHeader>
+          <PickupPointMapPanel selected={selected} onSelect={choose} onUnavailable={() => setMapFailed(true)} />
+        </DialogContent>
+      ) : (
+        <DialogContent closeLabel={t('common.close')} className="flex max-h-[min(40rem,calc(100dvh-2rem))] max-w-xl flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>{t('checkout.choosePoint')}</DialogTitle>
+            <DialogDescription>{t('checkout.onePointNote')}</DialogDescription>
+          </DialogHeader>
+          {/* Start on "by region" when a point is already chosen: its region's list opens ready. */}
+          <Tabs defaultValue={selected ? 'region' : 'nearby'} className="flex min-h-0 flex-1 flex-col gap-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="nearby" className="flex-1">
+                {t('checkout.nearMe')}
+              </TabsTrigger>
+              <TabsTrigger value="region" className="flex-1">
+                {t('checkout.byRegion')}
+              </TabsTrigger>
+            </TabsList>
+            <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+              <TabsContent value="nearby">
+                <NearMe selectedId={selected?.id} onSelect={choose} />
+              </TabsContent>
+              <TabsContent value="region">
+                <ByRegion initialRegionId={selected?.region_id} selectedId={selected?.id} onSelect={choose} />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

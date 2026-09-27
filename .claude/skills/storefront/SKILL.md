@@ -67,5 +67,9 @@ See `DESIGN.md`. Tokens only — never raw palette colours.
   `transform: scale()` compose with centered dialogs without extra work.
 
 ## Verifying in a browser
+- The cloud sandbox can't reach Yandex (Maps JS API, Suggest, Geocoder). To exercise the
+  pickup-point map, route `api-maps.yandex.ru` in Playwright to a small ymaps3 test double
+  (YMap/YMapMarker/YMapListener/layers, `[lng, lat]` coords) and fake Suggest/Geocoder JSON.
+  Keys live only in `.env` (git-ignored); the picker falls back to the list when the map fails.
 - Playwright screenshots hide the caret by injecting styles, which can surface as a React
   hydration-mismatch warning on inputs. Re-check without screenshots before chasing it.
